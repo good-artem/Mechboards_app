@@ -21,7 +21,7 @@
 </template>
 
 <script>
-import TasksComponent from '@/components/TasksComponent.vue'
+import TasksComponent from '../components/TasksComponent.vue'
 
 export default {
     name: 'HomeView',
