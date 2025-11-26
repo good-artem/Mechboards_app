@@ -1,56 +1,50 @@
 <template>
-    <v-container class="fill-height">
-        <v-row>
-            <v-col cols="12">
-                <v-card class="mx-auto" elevation="2">
-                    <v-card-title class="d-flex align-center">
-                        <v-text-field
-                            v-model="newTask"
-                            placeholder="Введите задачу..."
-                            variant="outlined"
-                            density="comfortable"
-                            hide-details
-                            @keyup.enter="createTask"
-                        >
-                        </v-text-field>
-                        <v-btn 
-                            icon 
-                            color="primary" 
-                            @click="createTask"
-                            class="ml-2"
-                            :disabled="!newTask"
-                        >
-                            <v-icon>mdi-plus</v-icon>
-                        </v-btn>
-                    </v-card-title>
+    <v-card class="mx-auto" elevation="2">
+        <v-card-title class="d-flex align-center">
+            <v-text-field
+                v-model="newTask"
+                placeholder="Введите задачу..."
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                @keyup.enter="createTask"
+            >
+            </v-text-field>
+            <v-btn 
+                icon 
+                color="primary" 
+                @click="createTask"
+                class="ml-2"
+                :disabled="!newTask"
+            >
+                <v-icon>mdi-plus</v-icon>
+            </v-btn>
+        </v-card-title>
 
-                    <v-list lines="two">
-                        <v-list-item
-                            v-for="task in tasks"
-                            :key="task.id"
-                            :title="task.title"
-                        >
-                            <template v-slot:append>
-                                <v-btn
-                                    color="success"
-                                    variant="tonal"
-                                    size="small"
-                                    @click="completeTask(task.id)"
-                                >
-                                    Выполнено
-                                </v-btn>
-                            </template>
-                        </v-list-item>
-                    </v-list>
-                </v-card>
-            </v-col>
-        </v-row>
-    </v-container>
+        <v-list lines="two">
+            <v-list-item
+                v-for="task in tasks"
+                :key="task.id"
+                :title="task.title"
+            >
+                <template v-slot:append>
+                    <v-btn
+                        color="success"
+                        variant="tonal"
+                        size="small"
+                        @click="completeTask(task.id)"
+                    >
+                        Выполнено
+                    </v-btn>
+                </template>
+            </v-list-item>
+        </v-list>
+    </v-card>
 </template>
 
 <script>
 export default {
-    name: 'TasksView',
+    name: 'TasksComponent',
     data() {
         return {
             tasks: [],
@@ -114,7 +108,3 @@ export default {
     }
 }
 </script>
-
-<style scoped>
-/* Дополнительные стили не нужны */
-</style>

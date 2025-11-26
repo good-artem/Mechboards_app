@@ -1,16 +1,16 @@
 <template>
   <v-app>
     <v-main>
-      <!-- Верхняя часть: Новости и поиск -->
-      <div class="top-section">
-        <NewsCarousel />
-        <SearchBar />
-      </div>
+      <!-- Новости показываются только на главной и каталоге -->
+      <NewsCarousel v-if="$route.name === 'home' || $route.name === 'catalog'" />
 
       <!-- Основной контент -->
       <div class="main-content">
         <router-view />
       </div>
+
+      <!-- Поиск всегда над навбаром -->
+      <SearchBar />
 
       <!-- Навбар -->
       <Navbar />
@@ -43,20 +43,10 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.top-section {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: var(--tg-theme-bg-color, #ffffff);
-  border-bottom: 1px solid #e0e0e0;
-}
-
 .main-content {
-  margin-top: 160px; /* Высота top-section */
-  margin-bottom: 80px; /* Высота навбара */
-  padding: 0 8px;
+  margin-top: 70px; /* Высота новостей */
+  margin-bottom: 120px; /* Высота поиска + навбара */
+  min-height: calc(100vh - 190px);
 }
 
 /* Стили для Vuetify компонентов */
@@ -66,6 +56,7 @@ body {
   left: 0;
   right: 0;
   z-index: 100;
+  height: 60px !important;
 }
 
 .v-btn--active {

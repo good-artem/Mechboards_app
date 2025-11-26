@@ -1,6 +1,6 @@
 <template>
-    <div class="news-carousel">
-        <v-card class="carousel-container" elevation="1" rounded="lg">
+    <div class="news-carousel-container">
+        <div class="news-carousel">
             <div class="news-scroll">
                 <div 
                     v-for="news in newsItems" 
@@ -12,7 +12,7 @@
                     <span class="news-text">{{ news.title }}</span>
                 </div>
             </div>
-        </v-card>
+        </div>
     </div>
 </template>
 
@@ -33,19 +33,25 @@ export default {
     methods: {
         openNews(news) {
             console.log('Opening news:', news.title)
-            // Навигация или открытие модального окна
         }
     }
 }
 </script>
 
 <style scoped>
-.news-carousel {
-    margin: 8px 16px;
+.news-carousel-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--tg-theme-bg-color, #ffffff);
+    border-bottom: 1px solid #e0e0e0;
 }
 
-.carousel-container {
-    padding: 12px 8px;
+.news-carousel {
+    height: 70px; /* На 10% больше навбара */
+    padding: 8px 0;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
@@ -53,13 +59,14 @@ export default {
     display: flex;
     overflow-x: auto;
     gap: 16px;
-    padding: 4px 0;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    padding: 0 16px;
+    height: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .news-scroll::-webkit-scrollbar {
-    display: none; /* Chrome, Safari and Opera */
+    display: none;
 }
 
 .news-item {
@@ -69,7 +76,7 @@ export default {
     align-items: center;
     justify-content: center;
     min-width: 80px;
-    height: 70px; /* На 10% больше навбара */
+    height: 54px;
     background: rgba(255, 255, 255, 0.9);
     border-radius: 12px;
     padding: 8px;
