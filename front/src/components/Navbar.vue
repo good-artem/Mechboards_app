@@ -47,4 +47,8 @@ export default {
 
 <style scoped>
 /* Дополнительные стили не нужны, Vuetify все делает */
+.navbar {
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: env(safe-area-inset-top);
+}
 </style>

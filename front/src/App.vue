@@ -10,7 +10,7 @@
       </div>
 
       <!-- Поиск всегда над навбаром -->
-      <SearchBar />
+      <SearchBar v-if="$route.name === 'home' || $route.name === 'catalog'" />
 
       <!-- Навбар -->
       <Navbar />
@@ -34,32 +34,20 @@ export default {
 </script>
 
 <style>
-/* Глобальные стили для Telegram Mini App */
+/* Принудительные стили для консистентности */
 body {
-  margin: 0;
-  padding: 0;
-  background: var(--tg-theme-bg-color, #f5f5f5);
-  color: var(--tg-theme-text-color, #000000);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.v-application {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
 }
 
 .main-content {
-  margin-top: 150px; /* Высота карусели */
+  margin-top: 150px;
   margin-bottom: 120px;
   min-height: calc(100vh - 270px);
-}
-
-/* Стили для Vuetify компонентов */
-.v-bottom-navigation {
-  position: fixed !important;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  height: 60px !important;
-}
-
-.v-btn--active {
-  background-color: rgba(var(--v-theme-primary), 0.1) !important;
+  padding: 0 8px;
 }
 </style>
