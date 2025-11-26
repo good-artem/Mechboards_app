@@ -20,7 +20,7 @@ class User(Base):
     name = mapped_column(String(128))
     telephone_number = mapped_column(String(13))
     address = mapped_column(String(128))    
-    count_orders = mapped_column(int)
+    count_orders = mapped_column(BigInteger) #исправить на int
 
 class Cart(Base):
     __tablename__ = 'carts'
