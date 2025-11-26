@@ -1,12 +1,47 @@
 <template>
-    <div class="profile-container">
-        <h2>Профиль</h2>
-        <div class="profile-info">
-            <p><strong>ID:</strong> {{ user.id }}</p>
-            <p><strong>Имя:</strong> {{ user.name }}</p>
-            <p><strong>Выполнено задач:</strong> {{ user.completedTasks }}</p>
-        </div>
-    </div>
+    <v-container class="fill-height">
+        <v-row justify="center">
+            <v-col cols="12" sm="8" md="6">
+                <v-card class="pa-4" elevation="2">
+                    <v-card-title class="text-h5 text-center">
+                        Профиль
+                    </v-card-title>
+                    
+                    <v-card-text>
+                        <v-list>
+                            <v-list-item>
+                                <template v-slot:prepend>
+                                    <v-icon color="primary">mdi-identifier</v-icon>
+                                </template>
+                                <v-list-item-title>ID</v-list-item-title>
+                                <v-list-item-subtitle>{{ user.id }}</v-list-item-subtitle>
+                            </v-list-item>
+
+                            <v-divider></v-divider>
+
+                            <v-list-item>
+                                <template v-slot:prepend>
+                                    <v-icon color="primary">mdi-account</v-icon>
+                                </template>
+                                <v-list-item-title>Имя</v-list-item-title>
+                                <v-list-item-subtitle>{{ user.name }}</v-list-item-subtitle>
+                            </v-list-item>
+
+                            <v-divider></v-divider>
+
+                            <v-list-item>
+                                <template v-slot:prepend>
+                                    <v-icon color="success">mdi-check-all</v-icon>
+                                </template>
+                                <v-list-item-title>Выполнено задач</v-list-item-title>
+                                <v-list-item-subtitle>{{ user.completedTasks }}</v-list-item-subtitle>
+                            </v-list-item>
+                        </v-list>
+                    </v-card-text>
+                </v-card>
+            </v-col>
+        </v-row>
+    </v-container>
 </template>
 
 <script>
@@ -42,24 +77,5 @@ export default {
 </script>
 
 <style scoped>
-.profile-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 16px;
-}
-
-.profile-info {
-  background-color: #ffffffcc;
-  backdrop-filter: blur(8px);
-  padding: 16px;
-  border-radius: 8px;
-  text-align: left;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  margin-top: 16px;
-  width: 100%;
-  max-width: 320px;
-}
+/* Дополнительные стили не нужны */
 </style>

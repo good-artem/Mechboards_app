@@ -1,11 +1,10 @@
 <template>
-  <div class="app_container">
-
-    <router-view />
-
-    <Navbar />
-
-  </div>
+  <v-app>
+    <v-main>
+      <router-view />
+      <Navbar />
+    </v-main>
+  </v-app>
 </template>
 
 <script>
@@ -19,14 +18,16 @@ export default {
 }
 </script>
 
-<style scoped>
-.app-container {
-  display: flex;
-  flex-direction: column;
-  height: 98vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  /* Общий стилизованный фон в стиле iOS (можно доработать) */
-  background: linear-gradient(to bottom right, #f0f0f0, #ffffff);
+<style>
+/* Глобальные стили для Telegram Mini App */
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000000);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.v-main {
+  padding-bottom: 80px !important;
 }
 </style>

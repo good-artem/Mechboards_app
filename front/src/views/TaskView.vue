@@ -1,32 +1,51 @@
 <template>
-    <div class="tasks_container">
-        <div class="tasks-header">
-            <input 
-                v-model="newTask"
-                type="text"
-                placeholder="Введите задачу..."
-                class="task-input"
-                @keyup.enter="createTask"
-            />
-            <button @click="createTask" class="add-button">+</button>
-        </div>
+    <v-container class="fill-height">
+        <v-row>
+            <v-col cols="12">
+                <v-card class="mx-auto" elevation="2">
+                    <v-card-title class="d-flex align-center">
+                        <v-text-field
+                            v-model="newTask"
+                            placeholder="Введите задачу..."
+                            variant="outlined"
+                            density="comfortable"
+                            hide-details
+                            @keyup.enter="createTask"
+                        >
+                        </v-text-field>
+                        <v-btn 
+                            icon 
+                            color="primary" 
+                            @click="createTask"
+                            class="ml-2"
+                            :disabled="!newTask"
+                        >
+                            <v-icon>mdi-plus</v-icon>
+                        </v-btn>
+                    </v-card-title>
 
-        <div class="tasks-list">
-            <div
-                v-for="task in tasks"
-                :key="task.id"
-                class="task-item"
-            >
-                <div class="task-text">
-                    {{ task.title }}
-                </div>
-                <button
-                    class="complete-button"
-                    @click="completeTask(task.id)">Выполнено
-                </button>
-            </div>
-        </div>
-    </div>
+                    <v-list lines="two">
+                        <v-list-item
+                            v-for="task in tasks"
+                            :key="task.id"
+                            :title="task.title"
+                        >
+                            <template v-slot:append>
+                                <v-btn
+                                    color="success"
+                                    variant="tonal"
+                                    size="small"
+                                    @click="completeTask(task.id)"
+                                >
+                                    Выполнено
+                                </v-btn>
+                            </template>
+                        </v-list-item>
+                    </v-list>
+                </v-card>
+            </v-col>
+        </v-row>
+    </v-container>
 </template>
 
 <script>
@@ -70,7 +89,7 @@ export default {
                 } else {
                     console.error('Ошибка', response.status)
                 }
-            } catch (eror) {
+            } catch (error) {
                 console.log('Ошибка', error)
             }
         },
@@ -88,7 +107,7 @@ export default {
                 } else {
                     console.error('Ошибка', response.status)
                 }
-            } catch (eror) {
+            } catch (error) {
                 console.log('Ошибка', error)
             }
         }
@@ -97,71 +116,5 @@ export default {
 </script>
 
 <style scoped>
-.tasks-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow-y: auto; /* Прокрутка, если задач много */
-}
-
-.tasks-header {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.task-input {
-  flex: 1;
-  padding: 8px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  margin-right: 8px;
-}
-
-.add-button {
-  background-color: #007aff; /* Цвет в стиле iOS */
-  color: white;
-  border: none;
-  padding: 0 16px;
-  font-size: 24px;
-  border-radius: 50%;
-  cursor: pointer;
-  outline: none;
-  height: 40px;
-  width: 40px;
-}
-
-.tasks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.task-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #ffffffcc;
-  padding: 8px 12px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.task-text {
-  font-size: 16px;
-}
-
-.complete-button {
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-}
+/* Дополнительные стили не нужны */
 </style>
-  
