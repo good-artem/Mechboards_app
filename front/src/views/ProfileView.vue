@@ -4,9 +4,9 @@
             <v-col cols="12" sm="8" md="6">
                 <v-card class="pa-4" elevation="2">
                     <v-card-title class="text-h5 text-center">
-                        <v-avatar color="primary" size="64" class="mr-2">
-                            <v-icon v-if="!user.photo_url" dark>mdi-account</v-icon>
-                            <img v-else :src="user.photo_url" alt="Profile">
+                        <v-avatar size="64" class="mr-2">
+                            <v-icon v-if="!user.photo_url">mdi-account</v-icon>
+                                <img v-else :src="user.photo_url" alt="User Avatar">
                         </v-avatar>
                         Профиль
                     </v-card-title>

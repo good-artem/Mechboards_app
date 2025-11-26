@@ -50,8 +50,8 @@ export default {
 }
 
 .news-carousel {
-    height: 70px; /* На 10% больше навбара */
-    padding: 8px 0;
+    height: 150px;
+    padding: 16px 0;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
@@ -75,8 +75,8 @@ export default {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-width: 80px;
-    height: 54px;
+    min-width: 100px;
+    height: 120px;
     background: rgba(255, 255, 255, 0.9);
     border-radius: 12px;
     padding: 8px;
@@ -92,12 +92,13 @@ export default {
 }
 
 .news-icon {
-    margin-bottom: 4px;
     color: #667eea;
+    font-size: 2rem;
+    margin-bottom: 8px;
 }
 
 .news-text {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
     font-weight: 500;
     text-align: center;
     color: #333;
