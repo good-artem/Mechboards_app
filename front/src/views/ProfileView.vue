@@ -28,7 +28,7 @@ export default {
         async fetchProfile() {
             try {
                 const tg_user = window.Telegram.WebApp.initDataUnsafe?.user
-                const response = await fetch(`https://refactored-fishstick-jj7qgwww9x94cq4r6-8000.app.github.dev/api/main/${tg_user.id}`)
+                const response = await fetch(`https://opulent-train-x45v4q7qgg9c9v57-8000.app.github.dev/api/main/${tg_user.id}`)
                 const data = await response.json()
                 this.user.id = tg_user.id
                 this.user.name = tg_user.first_name

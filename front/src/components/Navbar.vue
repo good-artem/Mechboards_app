@@ -12,15 +12,30 @@ export default {
 </script>
 
 <style scoped>
+.app-container {
+  min-height: 100vh;
+  position: relative;
+}
+
+.main-content {
+  padding-bottom: 60px; /* Место для навбара */
+}
+
 .navbar {
   display: flex;
   justify-content: space-around;
   align-items: center;
   height: 60px;
-  /* Для iOS/macOS-стиля можно добавить полупрозрачный эффект */
   background-color: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
   border-top: 1px solid #ccc;
+  
+  /* Фиксированное позиционирование */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
 }
 
 .nav-link {
@@ -28,5 +43,10 @@ export default {
   color: #333;
   font-size: 16px;
   font-weight: 500;
+  padding: 10px 20px;
+}
+
+.nav-link.router-link-active {
+  color: #007bff; /* Цвет для активной ссылки */
 }
 </style>
