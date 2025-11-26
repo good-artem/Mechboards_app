@@ -30,6 +30,7 @@ const routes = [
     path: '/profile',
     name: 'profile',
     component: ProfileView
+  }
 ]
 
 const router = createRouter({
