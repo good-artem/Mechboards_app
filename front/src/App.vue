@@ -44,9 +44,9 @@ body {
 }
 
 .main-content {
-  margin-top: 70px; /* Высота новостей */
-  margin-bottom: 120px; /* Высота поиска + навбара */
-  min-height: calc(100vh - 190px);
+  margin-top: 150px; /* Высота карусели */
+  margin-bottom: 120px;
+  min-height: calc(100vh - 270px);
 }
 
 /* Стили для Vuetify компонентов */
