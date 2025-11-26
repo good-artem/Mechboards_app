@@ -1,9 +1,13 @@
 <template>
-    <v-container class="fill-height">
+    <v-container>
         <v-row justify="center">
             <v-col cols="12" sm="8" md="6">
                 <v-card class="pa-4" elevation="2">
                     <v-card-title class="text-h5 text-center">
+                        <v-avatar color="primary" size="64" class="mr-2">
+                            <v-icon v-if="!user.photo_url" dark>mdi-account</v-icon>
+                            <img v-else :src="user.photo_url" alt="Profile">
+                        </v-avatar>
                         Профиль
                     </v-card-title>
                     
@@ -52,12 +56,21 @@ export default {
             user: {
                 id: '',
                 name: '',
-                completedTasks: 0
+                completedTasks: 0,
+                photo_url: null
             }
         }
     },
     async mounted() {
         await this.fetchProfile()
+        
+        // Для Telegram user photo
+        if (window.Telegram?.WebApp) {
+            const tgUser = window.Telegram.WebApp.initDataUnsafe?.user
+            if (tgUser?.photo_url) {
+                this.user.photo_url = tgUser.photo_url
+            }
+        }
     },
     methods: {
         async fetchProfile() {
@@ -75,7 +88,3 @@ export default {
     }
 }
 </script>
-
-<style scoped>
-/* Дополнительные стили не нужны */
-</style>
