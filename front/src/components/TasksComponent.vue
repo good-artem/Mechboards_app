@@ -44,7 +44,7 @@
 
 <script>
 export default {
-    name: 'TasksView',
+    name: 'TasksComponent',
     data() {
         return {
             tasks: [],
