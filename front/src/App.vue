@@ -34,20 +34,75 @@ export default {
 </script>
 
 <style>
-/* Принудительные стили для консистентности */
-body {
-  background: var(--tg-theme-bg-color, #ffffff) !important;
-  color: var(--tg-theme-text-color, #000000) !important;
+/* Используем CSS-переменные Telegram */
+:root {
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-button-color: #2481cc;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f1f1f1;
 }
 
+/* Применяем тему ко всему приложению */
 .v-application {
-  background: var(--tg-theme-bg-color, #ffffff) !important;
+  background: var(--tg-theme-bg-color) !important;
+  color: var(--tg-theme-text-color) !important;
 }
 
-.main-content {
-  margin-top: 150px;
-  margin-bottom: 120px;
-  min-height: calc(100vh - 270px);
-  padding: 0 8px;
+/* Навбар */
+.v-bottom-navigation {
+  background: var(--tg-theme-bg-color) !important;
+  border-top: 1px solid var(--tg-theme-secondary-bg-color);
+}
+
+.v-btn:not(.v-btn--active) {
+  color: var(--tg-theme-text-color) !important;
+}
+
+.v-btn--active {
+  color: var(--tg-theme-button-color) !important;
+}
+
+/* Карточки */
+.v-card {
+  background: var(--tg-theme-bg-color) !important;
+  color: var(--tg-theme-text-color) !important;
+}
+
+/* Списки */
+.v-list {
+  background: var(--tg-theme-bg-color) !important;
+  color: var(--tg-theme-text-color) !important;
+}
+
+/* Поля ввода */
+.v-field {
+  background: var(--tg-theme-secondary-bg-color) !important;
+  color: var(--tg-theme-text-color) !important;
+}
+
+.v-field__input {
+  color: var(--tg-theme-text-color) !important;
+}
+
+/* Иконки в полях */
+.v-field__prepend-inner {
+  color: var(--tg-theme-hint-color) !important;
+}
+
+/* Карусель новостей */
+.carousel-container {
+  background: var(--tg-theme-button-color) !important;
+}
+
+.news-item {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--tg-theme-text-color) !important;
+}
+
+.news-icon {
+  color: var(--tg-theme-button-color) !important;
 }
 </style>
