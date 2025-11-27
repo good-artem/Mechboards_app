@@ -40,14 +40,15 @@ export default {
 
 <style scoped>
 .news-carousel-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background: var(--tg-theme-bg-color, #ffffff);
-    border-bottom: 1px solid #e0e0e0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
 }
+    /* background: var(--tg-theme-bg-color, #ffffff);
+    border-bottom: 1px solid #e0e0e0;
+} */
 
 .news-carousel {
     height: 150px;

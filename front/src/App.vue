@@ -34,75 +34,64 @@ export default {
 </script>
 
 <style>
-/* Используем CSS-переменные Telegram */
-:root {
-  --tg-theme-bg-color: #ffffff;
-  --tg-theme-text-color: #000000;
-  --tg-theme-hint-color: #999999;
-  --tg-theme-link-color: #2481cc;
-  --tg-theme-button-color: #2481cc;
-  --tg-theme-button-text-color: #ffffff;
-  --tg-theme-secondary-bg-color: #f1f1f1;
-}
-
-/* Применяем тему ко всему приложению */
+/* Принудительное применение темы Telegram */
 .v-application {
-  background: var(--tg-theme-bg-color) !important;
-  color: var(--tg-theme-text-color) !important;
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
 }
 
 /* Навбар */
 .v-bottom-navigation {
-  background: var(--tg-theme-bg-color) !important;
-  border-top: 1px solid var(--tg-theme-secondary-bg-color);
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  border-top: 1px solid var(--tg-theme-secondary-bg-color, #f1f1f1);
 }
 
-.v-btn:not(.v-btn--active) {
-  color: var(--tg-theme-text-color) !important;
+.v-btn {
+  color: var(--tg-theme-text-color, #000000) !important;
 }
 
 .v-btn--active {
-  color: var(--tg-theme-button-color) !important;
+  color: var(--tg-theme-button-color, #2481cc) !important;
+  background: transparent !important;
 }
 
 /* Карточки */
 .v-card {
-  background: var(--tg-theme-bg-color) !important;
-  color: var(--tg-theme-text-color) !important;
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+  border: 1px solid var(--tg-theme-secondary-bg-color, #f1f1f1);
 }
 
 /* Списки */
 .v-list {
-  background: var(--tg-theme-bg-color) !important;
-  color: var(--tg-theme-text-color) !important;
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
 }
 
 /* Поля ввода */
 .v-field {
-  background: var(--tg-theme-secondary-bg-color) !important;
-  color: var(--tg-theme-text-color) !important;
+  background: var(--tg-theme-secondary-bg-color, #f1f1f1) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
 }
 
 .v-field__input {
-  color: var(--tg-theme-text-color) !important;
-}
-
-/* Иконки в полях */
-.v-field__prepend-inner {
-  color: var(--tg-theme-hint-color) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
 }
 
 /* Карусель новостей */
 .carousel-container {
-  background: var(--tg-theme-button-color) !important;
+  background: var(--tg-theme-button-color, #2481cc) !important;
 }
 
-.news-item {
-  background: rgba(255, 255, 255, 0.9) !important;
-  color: var(--tg-theme-text-color) !important;
+/* Иконки */
+.v-icon {
+  color: inherit !important;
 }
 
-.news-icon {
-  color: var(--tg-theme-button-color) !important;
+.main-content {
+  margin-top: 150px; /* Высота карусели */
+  margin-bottom: 120px;
+  min-height: calc(100vh - 270px);
+  padding: 0 8px;
 }
 </style>
