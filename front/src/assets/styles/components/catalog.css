@@ -47,3 +47,27 @@
 .filter-btn, .back-btn {
     color: var(--tg-theme-button-color, #2481cc) !important;
 }
+
+.products-container {
+    margin-top: 16px;
+}
+
+/* Исправляем кнопки фильтра и назад */
+.filter-btn, .back-btn {
+    background: transparent !important;
+    color: var(--tg-theme-button-color, #2481cc) !important;
+    box-shadow: none !important;
+}
+
+.filter-btn:hover, .back-btn:hover {
+    background: rgba(var(--v-theme-primary), 0.1) !important;
+}
+
+/* Убираем белый фон у кнопок Vuetify в темной теме */
+.v-btn--icon {
+    background: transparent !important;
+}
+
+.v-btn--icon:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}

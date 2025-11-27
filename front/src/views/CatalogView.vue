@@ -109,7 +109,7 @@
             </div>
 
             <!-- Товары (показываются при выборе категории) -->
-            <div v-else>
+            <div v-else class="products-container">
                 <v-row>
                     <v-col 
                         v-for="product in filteredProducts" 

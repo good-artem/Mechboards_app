@@ -91,3 +91,27 @@
 .v-list-item--active {
   background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
 }
+
+.v-btn--icon {
+    background: transparent !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.v-btn--icon:hover {
+    background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+}
+
+/* Активные кнопки */
+.v-btn--active.v-btn--icon {
+    color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+/* Кнопки в панели фильтров */
+.filter-btn, .back-btn {
+    background: transparent !important;
+    color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+.filter-btn:hover, .back-btn:hover {
+    background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+}
