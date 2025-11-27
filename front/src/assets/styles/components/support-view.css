@@ -1,0 +1,119 @@
+.support-container {
+    padding: 16px 8px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+.support-header {
+    background: var(--tg-theme-bg-color, #ffffff) !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+    border-radius: 12px;
+}
+
+.support-title {
+    color: var(--tg-theme-text-color, #000000) !important;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+}
+
+.support-subtitle {
+    color: var(--tg-theme-hint-color, #666666) !important;
+    font-size: 1rem !important;
+}
+
+.services-card,
+.contact-card {
+    background: var(--tg-theme-bg-color, #ffffff) !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+    border-radius: 12px;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.services-title,
+.contact-title {
+    color: var(--tg-theme-text-color, #000000) !important;
+    font-size: 1.2rem !important;
+    padding: 16px !important;
+    display: flex;
+    align-items: center;
+}
+
+.services-list,
+.contact-list {
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+.service-item,
+.contact-item {
+    color: var(--tg-theme-text-color, #000000) !important;
+    padding: 12px 0 !important;
+    min-height: 64px !important;
+}
+
+.service-icon,
+.contact-icon {
+    margin-right: 12px;
+}
+
+.service-divider,
+.contact-divider {
+    margin: 8px 0 !important;
+    border-color: var(--tg-theme-hint-color, #e0e0e0) !important;
+}
+
+.service-item .v-list-item-title {
+    font-weight: 500 !important;
+    font-size: 0.95rem !important;
+}
+
+.service-item .v-list-item-subtitle,
+.contact-item .v-list-item-subtitle {
+    color: var(--tg-theme-hint-color, #666666) !important;
+    font-size: 0.85rem !important;
+}
+
+.contact-item .v-list-item-title {
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+}
+
+.coming-soon-card {
+    background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+    border-radius: 12px;
+    border: 2px dashed var(--tg-theme-hint-color, #cccccc);
+}
+
+/* Адаптация для маленьких экранов */
+@media (max-height: 700px) {
+    .support-container {
+        padding: 12px 8px;
+    }
+    
+    .service-item,
+    .contact-item {
+        padding: 8px 0 !important;
+        min-height: 56px !important;
+    }
+}
+
+/* Глубокие селекторы для Vuetify компонентов */
+:deep(.v-card) {
+    background: var(--tg-theme-bg-color, #ffffff) !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-card-title),
+:deep(.v-card-text) {
+    color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-list) {
+    background: var(--tg-theme-bg-color, #ffffff) !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-list-item) {
+    color: var(--tg-theme-text-color, #000000) !important;
+}

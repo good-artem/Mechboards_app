@@ -1,0 +1,71 @@
+.tg-app {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+}
+
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--tg-theme-bg-color, #ffffff);
+}
+
+.loading-text {
+  margin-top: 16px;
+  color: var(--tg-theme-text-color, #000000);
+  font-size: 1rem;
+}
+
+.main-content {
+  margin-bottom: 120px;
+  min-height: calc(100vh - 120px);
+  padding: 0 8px;
+  background: var(--tg-theme-bg-color, #ffffff);
+}
+
+/* Анимации для плавных переходов */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Стили для системных уведомлений */
+:deep(.v-snackbar__wrapper) {
+  border-radius: 12px;
+}
+
+:deep(.v-snackbar__content) {
+  font-size: 0.9rem;
+  padding: 12px 16px;
+}
+
+/* Адаптация для разных размеров экранов */
+@media (max-width: 600px) {
+  .main-content {
+    padding: 0 4px;
+    margin-bottom: 110px;
+  }
+}
+
+@media (max-height: 700px) {
+  .main-content {
+    margin-bottom: 100px;
+    min-height: calc(100vh - 100px);
+  }
+}
+
+/* Темная тема для Vuetify компонентов */
+:deep(.v-application) {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-main) {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+}

@@ -64,6 +64,13 @@
     white-space: nowrap;
 }
 
+.out-of-stock {
+    color: #ff6b6b;
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
 .product-discount {
     position: absolute;
     top: -35px;
@@ -93,9 +100,15 @@
     border-radius: 8px 0 0 0;
 }
 
-.add-to-cart-btn:hover {
+.add-to-cart-btn:hover:not(:disabled) {
     background: var(--tg-theme-button-color, #1a6fb3);
     transform: scale(1.05);
+}
+
+.add-to-cart-btn:disabled {
+    background: var(--tg-theme-hint-color, #cccccc);
+    cursor: not-allowed;
+    transform: none;
 }
 
 .add-to-cart-btn .v-icon {

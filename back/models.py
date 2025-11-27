@@ -54,6 +54,7 @@ class Category(Base):
     category_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
+    icon: Mapped[str] = mapped_column(String(100), nullable=True)  # Добавлено поле для иконки
     parent_id: Mapped[int] = mapped_column(ForeignKey('categories.category_id', ondelete='SET NULL', onupdate='CASCADE'), nullable=True)
     
     # Relationships
@@ -175,6 +176,22 @@ class CartItem(Base):
     # Relationships
     cart: Mapped["Cart"] = relationship("Cart", back_populates="cart_items")
     product: Mapped["Product"] = relationship("Product", back_populates="cart_items")
+
+class News(Base):
+    __tablename__ = 'news'
+    
+    news_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    icon: Mapped[str] = mapped_column(String(100), nullable=True)
+    image_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    news_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'promo', 'category', 'delivery', 'discount'
+    action_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships если будут
 
 async def init_db():
     async with engine.begin() as conn:

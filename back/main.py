@@ -42,34 +42,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Существующие endpoints для задач (можно удалить позже)
-@app.get("/api/tasks/{tg_id}")
-async def tasks(tg_id: int):
-    user = await rq.add_user(tg_id)
-    return await rq.get_tasks(user.id)
-
-@app.get("/api/main/{tg_id}")
-async def profile(tg_id: int):
-    user = await rq.add_user(tg_id)
-    completed_tasks_count = await rq.get_completed_tasks_count(user.id)
-    return {'completedTasks': completed_tasks_count}
-
-@app.post("/api/add")
-async def add_task(task: AddTask):
-    user = await rq.add_user(task.tg_id)
-    await rq.add_task(user.id, task.title)
-    return {'status': 'ok'}
-
-@app.patch("/api/completed")
-async def complete_task(task: CompleteTask):
-    await rq.update_task(task.id)
-    return {'status': 'ok'}
-
 # Новые endpoints для магазина
 @app.get("/api/categories")
 async def get_categories():
     async with async_session() as session:
-        result = await session.execute(select(models.Category).where(models.Category.parent_id == None))
+        result = await session.execute(select(Category))
         categories = result.scalars().all()
         return categories
 
@@ -252,6 +229,82 @@ async def create_order(request: CreateOrderRequest):
         
         return {"status": "success", "order_number": order_number, "order_id": order.order_id}
 
+@app.get("/api/news")
+async def get_news():
+    async with async_session() as session:
+        # Получаем только активные новости, которые еще не истекли
+        from datetime import datetime
+        result = await session.execute(
+            select(News).where(
+                News.is_active == True,
+                (News.expires_at.is_(None)) | (News.expires_at > datetime.now())
+            ).order_by(News.created_at.desc())
+        )
+        news_items = result.scalars().all()
+        return news_items
+
+@app.get("/api/products/search")
+async def search_products(q: str = "", category_id: Optional[int] = None, limit: int = 20, offset: int = 0):
+    async with async_session() as session:
+        query = select(Product).where(
+            Product.is_available == True,
+            Product.stock_quantity > 0
+        )
+        
+        if q:
+            query = query.where(Product.name.ilike(f"%{q}%"))
+        
+        if category_id:
+            query = query.where(Product.category_id == category_id)
+            
+        query = query.limit(limit).offset(offset)
+        
+        result = await session.execute(query)
+        products = result.scalars().all()
+        return products
+
+ # Обновление количества товара в корзине
+@app.put("/api/cart/update")
+async def update_cart_item(request: dict):
+    async with async_session() as session:
+        cart_item_id = request.get('cart_item_id')
+        quantity = request.get('quantity')
+        
+        # Находим элемент корзины
+        result = await session.execute(
+            select(CartItem).where(CartItem.cart_item_id == cart_item_id)
+        )
+        cart_item = result.scalar_one_or_none()
+        
+        if not cart_item:
+            raise HTTPException(status_code=404, detail="Cart item not found")
+        
+        # Обновляем количество
+        cart_item.quantity = quantity
+        await session.commit()
+        
+        return {"status": "success", "message": "Cart updated"}
+
+# Удаление товара из корзины
+@app.delete("/api/cart/remove")
+async def remove_cart_item(request: dict):
+    async with async_session() as session:
+        cart_item_id = request.get('cart_item_id')
+        
+        # Находим и удаляем элемент корзины
+        result = await session.execute(
+            select(CartItem).where(CartItem.cart_item_id == cart_item_id)
+        )
+        cart_item = result.scalar_one_or_none()
+        
+        if not cart_item:
+            raise HTTPException(status_code=404, detail="Cart item not found")
+        
+        await session.delete(cart_item)
+        await session.commit()
+        
+        return {"status": "success", "message": "Item removed from cart"}
+       
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

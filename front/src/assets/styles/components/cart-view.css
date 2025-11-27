@@ -1,0 +1,23 @@
+.cart-item {
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.cart-item:last-child {
+    border-bottom: none;
+}
+
+.quantity-controls {
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.quantity-display {
+    min-width: 30px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.w-100 {
+    width: 100%;
+}

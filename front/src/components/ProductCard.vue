@@ -1,22 +1,36 @@
 <template>
     <div class="product-card" @click="openProduct">
-        <img :src="product.image" :alt="product.name" class="product-image">
+        <img :src="getProductImage(product)" :alt="product.name" class="product-image">
         
         <!-- Нижняя информационная панель -->
         <div class="product-info">
             <div class="text-content">
                 <div class="product-name">{{ product.name }}</div>
                 <div class="product-price">{{ formatPrice(product.price) }}</div>
+                <div v-if="product.stock_quantity === 0" class="out-of-stock">
+                    Нет в наличии
+                </div>
             </div>
             
-            <!-- Скидка -->
-            <div v-if="product.discount" class="product-discount">
-                -{{ product.discount }}%
+            <!-- Скидка (если будет в будущем) -->
+            <div v-if="product.discount_percent" class="product-discount">
+                -{{ product.discount_percent }}%
             </div>
             
             <!-- Кнопка добавления в корзину -->
-            <button class="add-to-cart-btn" @click.stop="addToCart">
-                <v-icon>mdi-cart-plus</v-icon>
+            <button 
+                class="add-to-cart-btn" 
+                @click.stop="addToCart"
+                :disabled="product.stock_quantity === 0 || addingToCart"
+            >
+                <v-icon v-if="!addingToCart">mdi-cart-plus</v-icon>
+                <v-progress-circular 
+                    v-else 
+                    indeterminate 
+                    size="20" 
+                    width="2"
+                    color="white"
+                ></v-progress-circular>
             </button>
         </div>
     </div>
@@ -33,15 +47,81 @@ export default {
             required: true
         }
     },
+    data() {
+        return {
+            addingToCart: false
+        }
+    },
     methods: {
         formatPrice(price) {
             return new Intl.NumberFormat('ru-RU').format(price) + ' ₽'
         },
+        getProductImage(product) {
+            // Обрабатываем поле images из бэкенда (JSON массив)
+            if (product.images && product.images.length > 0) {
+                // Если images - это массив URL
+                if (Array.isArray(product.images)) {
+                    return product.images[0];
+                }
+                // Если images - это JSON строка, пытаемся распарсить
+                try {
+                    const parsedImages = JSON.parse(product.images);
+                    if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+                        return parsedImages[0];
+                    }
+                } catch (e) {
+                    console.warn('Cannot parse product images:', e);
+                }
+            }
+            
+            // Fallback изображение
+            return 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Image';
+        },
         openProduct() {
             this.$emit('product-click', this.product)
         },
-        addToCart() {
-            this.$emit('add-to-cart', this.product)
+        async addToCart() {
+            if (this.product.stock_quantity === 0) return;
+            
+            this.addingToCart = true;
+            
+            try {
+                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (!tg_user) {
+                    console.error('Telegram user not found');
+                    this.$emit('show-message', 'Ошибка: пользователь не найден');
+                    return;
+                }
+
+                const response = await fetch('/api/cart/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        telegram_id: tg_user.id,
+                        product_id: this.product.product_id,
+                        quantity: 1
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    this.$emit('add-to-cart', this.product);
+                    this.$emit('show-message', `Товар "${this.product.name}" добавлен в корзину`);
+                    
+                    // Обновляем счетчик в навбаре
+                    this.$emit('cart-updated');
+                } else {
+                    const error = await response.json();
+                    this.$emit('show-message', `Ошибка: ${error.detail || 'Не удалось добавить в корзину'}`);
+                }
+            } catch (error) {
+                console.error('Error adding to cart:', error);
+                this.$emit('show-message', 'Ошибка соединения');
+            } finally {
+                this.addingToCart = false;
+            }
         }
     }
 }

@@ -1,0 +1,6 @@
+/* Стили для бейджа */
+:deep(.v-badge__badge) {
+  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+}

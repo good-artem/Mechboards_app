@@ -115,3 +115,26 @@
 .filter-btn:hover, .back-btn:hover {
     background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
 }
+
+/* Синхронизация темы Vuetify с Telegram */
+[data-theme="dark"] {
+  --v-theme-background: #1e1e1e;
+  --v-theme-surface: #2d2d2d;
+  --v-theme-on-surface: #ffffff;
+}
+
+[data-theme="light"] {
+  --v-theme-background: #ffffff;
+  --v-theme-surface: #ffffff;
+  --v-theme-on-surface: #000000;
+}
+
+/* Улучшенная поддержка Vuetify в Telegram */
+.v-application {
+  background: var(--tg-theme-bg-color, var(--v-theme-background)) !important;
+  color: var(--tg-theme-text-color, var(--v-theme-on-surface)) !important;
+}
+
+.v-main {
+  background: var(--tg-theme-bg-color, var(--v-theme-background)) !important;
+}

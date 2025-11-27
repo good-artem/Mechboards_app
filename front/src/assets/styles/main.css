@@ -1,7 +1,14 @@
-/* Главный файл импорта всех стилей */
 @import './global.css';
 @import './telegram-theme.css';
+@import './app.css'; 
 @import './components/catalog.css';
 @import './components/product-card.css';
 @import './components/news-carousel.css';
 @import './components/category-card.css';
+@import './components/home-view.css';
+@import './components/catalog-view.css';
+@import './components/cart-view.css';
+@import './components/search-bar.css';
+@import './components/navbar.css';
+@import './components/profile-view.css';
+@import './components/support-view.css';

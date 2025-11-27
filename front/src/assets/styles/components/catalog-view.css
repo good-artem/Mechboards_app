@@ -1,0 +1,43 @@
+.with-news {
+  margin-top: 150px;
+}
+
+.without-news {
+  margin-top: 0;
+}
+
+.filters-bar {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background: var(--tg-theme-bg-color, #ffffff);
+    margin: 0 -16px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.filters-panel {
+    position: sticky;
+    top: 60px;
+    z-index: 89;
+    margin: 0 -16px;
+    padding: 0 16px;
+    background: var(--tg-theme-bg-color, #ffffff);
+}
+
+.categories-grid {
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+}
+
+.products-container {
+    margin-top: 16px;
+}
+
+.telegram-select .v-field {
+    background: var(--tg-theme-secondary-bg-color, #f1f1f1) !important;
+}
+
+.filter-btn, .back-btn {
+    color: var(--tg-theme-button-color, #2481cc) !important;
+}

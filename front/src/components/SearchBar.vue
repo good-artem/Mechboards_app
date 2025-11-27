@@ -9,52 +9,120 @@
                 hide-details
                 prepend-inner-icon="mdi-magnify"
                 clearable
+                @input="handleInput"
                 @keyup.enter="performSearch"
                 @click:clear="clearSearch"
+                :loading="searchLoading"
             >
             </v-text-field>
+        </v-card>
+        
+        <!-- Результаты поиска (опционально) -->
+        <v-card v-if="showResults && searchResults.length > 0" class="search-results" elevation="4">
+            <v-list density="compact">
+                <v-list-item
+                    v-for="result in searchResults"
+                    :key="result.product_id"
+                    @click="selectProduct(result)"
+                >
+                    <v-list-item-title>{{ result.name }}</v-list-item-title>
+                    <v-list-item-subtitle>{{ formatPrice(result.price) }}</v-list-item-subtitle>
+                </v-list-item>
+            </v-list>
         </v-card>
     </div>
 </template>
 
 <script>
+
+import '@/assets/styles/components/search-bar.css'
+
 export default {
     name: "SearchBar",
     data() {
         return {
-            searchQuery: ''
+            searchQuery: '',
+            searchLoading: false,
+            searchResults: [],
+            showResults: false,
+            searchTimeout: null
         }
     },
     methods: {
-        performSearch() {
-            if (this.searchQuery.trim()) {
-                console.log('Searching for:', this.searchQuery)
-                this.$emit('search', this.searchQuery)
+        formatPrice(price) {
+            return new Intl.NumberFormat('ru-RU').format(price) + ' ₽'
+        },
+        handleInput() {
+            // Дебаунс для избежания частых запросов
+            clearTimeout(this.searchTimeout);
+            
+            if (this.searchQuery.trim().length > 2) {
+                this.searchTimeout = setTimeout(() => {
+                    this.performSearch();
+                }, 500);
+                this.showResults = true;
+            } else {
+                this.searchResults = [];
+                this.showResults = false;
+            }
+        },
+        async performSearch() {
+            if (!this.searchQuery.trim()) {
+                this.searchResults = [];
+                this.showResults = false;
+                this.$emit('search', '');
+                return;
+            }
+
+            this.searchLoading = true;
+            
+            try {
+                // Вызов API поиска
+                const response = await fetch(`/api/products/search?q=${encodeURIComponent(this.searchQuery)}&limit=5`);
+                
+                if (response.ok) {
+                    const results = await response.json();
+                    this.searchResults = results;
+                    this.showResults = true;
+                } else {
+                    console.error('Ошибка поиска');
+                    this.searchResults = [];
+                }
+                
+                // Эмитим событие для родительского компонента
+                this.$emit('search', this.searchQuery);
+            } catch (error) {
+                console.error('Ошибка поиска:', error);
+                this.searchResults = [];
+            } finally {
+                this.searchLoading = false;
             }
         },
         clearSearch() {
-            this.searchQuery = ''
-            this.$emit('clear-search')
+            this.searchQuery = '';
+            this.searchResults = [];
+            this.showResults = false;
+            this.$emit('clear-search');
+        },
+        selectProduct(product) {
+            this.$emit('product-selected', product);
+            this.searchQuery = product.name;
+            this.showResults = false;
+        },
+        hideResults() {
+            // Скрываем результаты при клике вне компонента
+            setTimeout(() => {
+                this.showResults = false;
+            }, 200);
         }
+    },
+    mounted() {
+        // Закрываем результаты при клике вне компонента
+        document.addEventListener('click', this.hideResults);
+    },
+    beforeUnmount() {
+        document.removeEventListener('click', this.hideResults);
     }
 }
 </script>
 
-<style scoped>
-.search-bar-container {
-    position: fixed;
-    bottom: 60px; /* Высота навбара */
-    left: 0;
-    right: 0;
-    z-index: 99;
-    background: var(--tg-theme-bg-color, #ffffff);
-    border-top: 1px solid #e0e0e0;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.search-container {
-    margin: 0;
-    border-radius: 0;
-    box-shadow: none !important;
-}
-</style>
