@@ -319,8 +319,18 @@ export default {
     overflow-y: auto;
 }
 
-.telegram-select .v-field {
-    background: var(--tg-theme-secondary-bg-color, #f1f1f1) !important;
+/* Стили для селектов в фильтрах */
+:deep(.v-select .v-field) {
+  background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-select .v-field__input) {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-select .v-label) {
+  color: var(--tg-theme-text-color, #000000) !important;
 }
 
 .filter-btn, .back-btn {

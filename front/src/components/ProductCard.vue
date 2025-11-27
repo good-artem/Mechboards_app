@@ -56,6 +56,7 @@ export default {
     background: var(--tg-theme-bg-color, #ffffff);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
 }
 
 .product-card:hover {
@@ -147,5 +148,6 @@ export default {
 
 .add-to-cart-btn .v-icon {
     font-size: 20px;
+    color: white !important;
 }
 </style>

@@ -33,10 +33,17 @@ export default {
     align-items: center;
     justify-content: center;
     border-radius: 12px;
+    background: var(--tg-theme-bg-color, #ffffff);
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    color: var(--tg-theme-text-color, #000000);
 }
 
 .category-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+:deep(.v-card-text) {
+    color: var(--tg-theme-text-color, #000000) !important;
 }
 </style>

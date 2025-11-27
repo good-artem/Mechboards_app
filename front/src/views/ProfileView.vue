@@ -88,3 +88,25 @@ export default {
     }
 }
 </script>
+
+
+<style scoped>
+:deep(.v-card) {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-card-title),
+:deep(.v-card-text) {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-list) {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+:deep(.v-list-item) {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+</style>

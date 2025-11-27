@@ -54,6 +54,7 @@ export default {
 .news-carousel {
     height: 150px;
     padding: 16px 0;
+    background: var(--tg-theme-button-color, #2481cc);
 }
 
 .news-scroll {
@@ -85,7 +86,7 @@ export default {
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border: 1px solid var(--tg-theme-hint-color, #f0f0f0);
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
 }
 
 .news-item:hover {
