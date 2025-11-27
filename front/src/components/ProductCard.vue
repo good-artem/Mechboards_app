@@ -4,8 +4,10 @@
         
         <!-- Нижняя информационная панель -->
         <div class="product-info">
-            <div class="product-name">{{ product.name }}</div>
-            <div class="product-price">{{ product.price }} ₽</div>
+            <div class="text-content">
+                <div class="product-name">{{ product.name }}</div>
+                <div class="product-price">{{ formatPrice(product.price) }}</div>
+            </div>
             
             <!-- Скидка -->
             <div v-if="product.discount" class="product-discount">
@@ -30,6 +32,9 @@ export default {
         }
     },
     methods: {
+        formatPrice(price) {
+            return new Intl.NumberFormat('ru-RU').format(price) + ' ₽'
+        },
         openProduct() {
             this.$emit('product-click', this.product)
         },
@@ -72,8 +77,8 @@ export default {
     height: 25%;
     background: linear-gradient(
         to top, 
-        rgba(0, 0, 0, 0.8) 0%, 
-        rgba(0, 0, 0, 0.6) 50%, 
+        rgba(0, 0, 0, 0.85) 0%, 
+        rgba(0, 0, 0, 0.7) 50%, 
         transparent 100%
     );
     padding: 8px 12px;
@@ -82,19 +87,28 @@ export default {
     justify-content: space-between;
 }
 
+.text-content {
+    flex: 1;
+    min-width: 0;
+    margin-right: 8px;
+}
+
 .product-name {
     color: white;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 500;
-    flex: 1;
-    margin-right: 8px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
 }
 
 .product-price {
     color: white;
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    margin-right: 8px;
+    white-space: nowrap;
 }
 
 .product-discount {
