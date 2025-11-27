@@ -5,13 +5,14 @@ export function useApi() {
   const loading = ref(false)
   const error = ref(null)
 
-  // Базовый метод для выполнения запросов
   const apiRequest = async (endpoint, options = {}) => {
     loading.value = true
     error.value = null
 
     try {
       const url = API_CONFIG.getUrl(endpoint)
+      console.log('🔄 API Request to:', url)
+      
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -21,20 +22,22 @@ export function useApi() {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
 
-      return await response.json()
+      const data = await response.json()
+      console.log('✅ API Response:', data)
+      return data
     } catch (err) {
       error.value = err.message
-      console.error('API request failed:', err)
+      console.error('❌ API request failed:', err)
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Специфичные методы для разных типов запросов
   const get = (endpoint) => apiRequest(endpoint)
   
   const post = (endpoint, data) => 
@@ -58,12 +61,10 @@ export function useApi() {
   return {
     loading,
     error,
-    apiRequest,
     get,
     post,
     put,
     delete: del,
-    endpoints: API_CONFIG.endpoints,
-    getBaseUrl: API_CONFIG.getBaseUrl
+    endpoints: API_CONFIG.endpoints
   }
 }

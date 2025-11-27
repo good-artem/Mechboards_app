@@ -38,16 +38,16 @@ export default {
     methods: {
         async fetchCartCount() {
             try {
+                const { get, endpoints } = useApi();
                 const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+                
                 if (tg_user) {
-                    const response = await fetch(`/api/cart/${tg_user.id}`);
-                    if (response.ok) {
-                        const cartData = await response.json();
-                        this.cartItemsCount = cartData.items?.length || 0;
-                    }
+                    const cartData = await get(endpoints.cart.get(tg_user.id));
+                    this.cartItemsCount = cartData.items?.length || 0;
+                    console.log('🛒 Cart count:', this.cartItemsCount);
                 }
             } catch (error) {
-                console.error('Ошибка загрузки корзины:', error);
+                console.error('❌ Ошибка загрузки корзины:', error);
             }
         }
     }

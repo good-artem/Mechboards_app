@@ -81,48 +81,36 @@ export default {
             this.$emit('product-click', this.product)
         },
         async addToCart() {
-            if (this.product.stock_quantity === 0) return;
-            
-            this.addingToCart = true;
-            
-            try {
-                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
-                if (!tg_user) {
-                    console.error('Telegram user not found');
-                    this.$emit('show-message', 'Ошибка: пользователь не найден');
-                    return;
-                }
-
-                const response = await fetch('/api/cart/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        telegram_id: tg_user.id,
-                        product_id: this.product.product_id,
-                        quantity: 1
-                    })
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    this.$emit('add-to-cart', this.product);
-                    this.$emit('show-message', `Товар "${this.product.name}" добавлен в корзину`);
-                    
-                    // Обновляем счетчик в навбаре
-                    this.$emit('cart-updated');
-                } else {
-                    const error = await response.json();
-                    this.$emit('show-message', `Ошибка: ${error.detail || 'Не удалось добавить в корзину'}`);
-                }
-            } catch (error) {
-                console.error('Error adding to cart:', error);
-                this.$emit('show-message', 'Ошибка соединения');
-            } finally {
-                this.addingToCart = false;
-            }
+    if (this.product.stock_quantity === 0) return;
+    
+    this.addingToCart = true;
+    
+    try {
+        const { post, endpoints } = useApi();
+        const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+        
+        if (!tg_user) {
+            this.$emit('show-message', 'Ошибка: пользователь не найден');
+            return;
         }
+
+        await post(endpoints.cart.add, {
+            telegram_id: tg_user.id,
+            product_id: this.product.product_id,
+            quantity: 1
+        });
+
+        this.$emit('add-to-cart', this.product);
+        this.$emit('show-message', `Товар "${this.product.name}" добавлен в корзину`);
+        this.$emit('cart-updated');
+        
+    } catch (error) {
+        console.error('Error adding to cart:', error);
+        this.$emit('show-message', 'Ошибка: ' + (error.message || 'Не удалось добавить в корзину'));
+    } finally {
+        this.addingToCart = false;
+    }
+}
     }
 }
 </script>
