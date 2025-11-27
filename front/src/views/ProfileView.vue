@@ -110,6 +110,7 @@
 
 <script>
 import '@/assets/styles/components/profile-view.css'
+import { useApi } from '@/composables/useApi'
 
 export default {
     name: 'ProfileView',
@@ -127,8 +128,7 @@ export default {
                 is_active: true
             },
             ordersCount: 0,
-            completedOrdersCount: 0,
-            loading: false
+            completedOrdersCount: 0
         }
     },
     async mounted() {
@@ -141,21 +141,12 @@ export default {
             if (tgUser?.photo_url) {
                 this.user.photo_url = tgUser.photo_url
             }
-            // Используем данные из Telegram, если нет в базе
-            if (!this.user.name && tgUser?.first_name) {
-                this.user.name = tgUser.first_name
-                if (tgUser.last_name) {
-                    this.user.name += ' ' + tgUser.last_name
-                }
-            }
-            if (!this.user.username && tgUser?.username) {
-                this.user.username = '@' + tgUser.username
-            }
         }
     },
     methods: {
         async fetchUserProfile() {
-            this.loading = true
+            const { get, endpoints, error } = useApi()
+            
             try {
                 const tg_user = window.Telegram.WebApp.initDataUnsafe?.user
                 if (!tg_user) {
@@ -164,57 +155,42 @@ export default {
                 }
 
                 // Получаем данные пользователя из бэкенда
-                const response = await fetch(`/api/users/${tg_user.id}`)
-                if (response.ok) {
-                    const userData = await response.json()
-                    this.user = { ...this.user, ...userData }
-                } else if (response.status === 404) {
-                    // Если пользователь не найден, создаем нового
+                const userData = await get(endpoints.users.profile(tg_user.id))
+                this.user = { ...this.user, ...userData }
+            } catch (err) {
+                console.error('Ошибка загрузки профиля:', error.value)
+                // Если пользователь не найден, создаем нового
+                if (err.message.includes('404')) {
                     await this.createUser(tg_user)
-                } else {
-                    console.error('Ошибка загрузки профиля')
                 }
-            } catch (error) {
-                console.error('Ошибка:', error)
             }
-            this.loading = false
         },
 
         async createUser(tgUser) {
+            const { post, endpoints } = useApi()
+            
             try {
-                const response = await fetch('/api/users/create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        telegram_id: tgUser.id,
-                        username: tgUser.username ? `@${tgUser.username}` : null,
-                        name: tgUser.first_name + (tgUser.last_name ? ` ${tgUser.last_name}` : '')
-                    })
+                const userData = await post(endpoints.users.create, {
+                    telegram_id: tgUser.id,
+                    username: tgUser.username ? `@${tgUser.username}` : null,
+                    name: tgUser.first_name + (tgUser.last_name ? ` ${tgUser.last_name}` : '')
                 })
-
-                if (response.ok) {
-                    const userData = await response.json()
-                    this.user = { ...this.user, ...userData }
-                }
+                this.user = { ...this.user, ...userData }
             } catch (error) {
                 console.error('Ошибка создания пользователя:', error)
             }
         },
 
         async fetchUserStats() {
+            const { get, endpoints } = useApi()
+            
             try {
                 const tg_user = window.Telegram.WebApp.initDataUnsafe?.user
                 if (!tg_user) return
 
-                // Получаем статистику заказов
-                const response = await fetch(`/api/users/${tg_user.id}/stats`)
-                if (response.ok) {
-                    const stats = await response.json()
-                    this.ordersCount = stats.total_orders || 0
-                    this.completedOrdersCount = stats.completed_orders || 0
-                }
+                const stats = await get(endpoints.users.stats(tg_user.id))
+                this.ordersCount = stats.total_orders || 0
+                this.completedOrdersCount = stats.completed_orders || 0
             } catch (error) {
                 console.error('Ошибка загрузки статистики:', error)
             }
