@@ -12,13 +12,11 @@
             <v-icon>mdi-cart</v-icon>
         </v-btn>
 
-        <v-btn value="profile" to="/profile">
-            <v-icon>mdi-account</v-icon>
-            <!-- В будущем замените на: -->
-            <!-- <v-avatar size="24" v-if="user.photo_url">
+        <v-btn value="profile" to="/profile" class="profile-btn">
+            <v-avatar v-if="user.photo_url" size="24">
                 <img :src="user.photo_url" alt="Profile">
             </v-avatar>
-            <v-icon v-else>mdi-account</v-icon> -->
+            <v-icon v-else>mdi-account</v-icon>
         </v-btn>
     </v-bottom-navigation>
 </template>
@@ -26,22 +24,18 @@
 <script>
 export default {
     name: "Navbar",
-    data() {
-        return {
-            user: {
-                photo_url: null
-            }
-        }
-    },
-    async mounted() {
-        // В будущем для Telegram user photo
-        if (window.Telegram?.WebApp) {
-            const tgUser = window.Telegram.WebApp.initDataUnsafe?.user
-            if (tgUser?.photo_url) {
-                this.user.photo_url = tgUser.photo_url
-            }
-        }
-    }
+      data() {
+      return {
+          user: {
+              photo_url: null
+          }
+      }
+  },
+  async mounted() {
+      if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+          this.user.photo_url = window.Telegram.WebApp.initDataUnsafe.user.photo_url
+      }
+  }
 }
 </script>
 
@@ -50,5 +44,8 @@ export default {
 .navbar {
   padding-bottom: env(safe-area-inset-bottom);
   padding-top: env(safe-area-inset-top);
+}
+.profile-btn .v-avatar {
+    margin: 0 auto;
 }
 </style>
