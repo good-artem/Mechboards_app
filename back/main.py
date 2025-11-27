@@ -8,12 +8,6 @@ from sqlalchemy import select
 from typing import List, Optional
 
 # Pydantic модели для запросов
-class AddTask(BaseModel):
-    tg_id: int
-    title: str
-
-class CompleteTask(BaseModel):
-    id: int
 
 class AddToCartRequest(BaseModel):
     telegram_id: int
