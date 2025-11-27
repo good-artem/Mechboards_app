@@ -1,35 +1,119 @@
 <template>
     <v-container>
-        <v-row>
-            <v-col cols="12">
-                <v-row class="categories-grid">
-                    <v-col 
-                        v-for="category in categories" 
-                        :key="category.id"
-                        cols="4"
-                        class="pa-2"
-                    >
-                        <CategoryCard 
-                            :category="category" 
-                            @category-selected="onCategorySelected"
-                        />
+        <!-- Панель фильтров и сортировки (только при просмотре товаров) -->
+        <div v-if="showProducts" class="filters-bar">
+            <v-card class="pa-2" elevation="1">
+                <v-row align="center" no-gutters>
+                    <v-col cols="6">
+                        <v-select
+                            v-model="sortBy"
+                            :items="sortOptions"
+                            label="Сортировка"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                        ></v-select>
+                    </v-col>
+                    <v-col cols="6" class="text-right">
+                        <v-btn 
+                            icon 
+                            @click="showFilters = !showFilters"
+                            size="small"
+                        >
+                            <v-icon>mdi-filter</v-icon>
+                        </v-btn>
+                        <v-btn 
+                            icon 
+                            @click="backToCategories"
+                            size="small"
+                        >
+                            <v-icon>mdi-arrow-left</v-icon>
+                        </v-btn>
                     </v-col>
                 </v-row>
-            </v-col>
-        </v-row>
+            </v-card>
+        </div>
+
+        <!-- Категории (показываются по умолчанию) -->
+        <div v-if="!showProducts">
+            <v-row class="categories-grid">
+                <v-col 
+                    v-for="category in categories" 
+                    :key="category.id"
+                    cols="4"
+                    class="pa-2"
+                >
+                    <CategoryCard 
+                        :category="category" 
+                        @category-selected="onCategorySelected"
+                    />
+                </v-col>
+            </v-row>
+        </div>
+
+        <!-- Товары (показываются при выборе категории) -->
+        <div v-else>
+            <v-row>
+                <v-col 
+                    v-for="product in filteredProducts" 
+                    :key="product.id"
+                    cols="6" 
+                    sm="3"
+                    class="pa-2"
+                >
+                    <ProductCard 
+                        :product="product"
+                        @product-click="openProductDetail"
+                        @add-to-cart="addToCart"
+                    />
+                </v-col>
+            </v-row>
+        </div>
+        
+        <!-- Детальная информация о товаре -->
+        <v-dialog v-model="productDialog" max-width="400">
+            <v-card v-if="selectedProduct">
+                <v-card-title>{{ selectedProduct.name }}</v-card-title>
+                <v-card-text>
+                    <img :src="selectedProduct.image" :alt="selectedProduct.name" style="width: 100%; border-radius: 8px;">
+                    <div class="mt-4">
+                        <p>Цена: {{ selectedProduct.price }} ₽</p>
+                        <p v-if="selectedProduct.description">{{ selectedProduct.description }}</p>
+                    </div>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" @click="productDialog = false">Закрыть</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </v-container>
 </template>
 
 <script>
 import CategoryCard from '@/components/CategoryCard.vue'
+import ProductCard from '@/components/ProductCard.vue'
 
 export default {
     name: 'CatalogView',
     components: {
-        CategoryCard
+        CategoryCard,
+        ProductCard
     },
     data() {
         return {
+            showProducts: false,
+            selectedCategory: null,
+            showFilters: false,
+            sortBy: 'name',
+            sortOptions: [
+                { title: 'По названию', value: 'name' },
+                { title: 'По цене (возр.)', value: 'price_asc' },
+                { title: 'По цене (убыв.)', value: 'price_desc' },
+                { title: 'По популярности', value: 'popular' }
+            ],
+            productDialog: false,
+            selectedProduct: null,
             categories: [
                 { id: 1, name: 'Весь каталог', icon: 'mdi-view-grid' },
                 { id: 2, name: 'Скидки', icon: 'mdi-sale' },
@@ -41,21 +125,104 @@ export default {
                 { id: 8, name: 'Смазка и моддинг', icon: 'mdi-bottle-tonic' },
                 { id: 9, name: 'Аксессуары', icon: 'mdi-cable-data' },
                 { id: 10, name: 'Другое', icon: 'mdi-dots-horizontal' }
+            ],
+            products: [
+                {
+                    id: 1,
+                    name: 'Mechanical Keyboard Pro',
+                    price: 4500,
+                    discount: 15,
+                    image: 'https://via.placeholder.com/300x400/667eea/ffffff?text=Keyboard+1',
+                    category: 'all'
+                },
+                {
+                    id: 2,
+                    name: 'Gaming Keyboard RGB',
+                    price: 3200,
+                    image: 'https://via.placeholder.com/300x400/764ba2/ffffff?text=Keyboard+2',
+                    category: 'all'
+                },
+                {
+                    id: 3,
+                    name: 'Compact 60% Keyboard',
+                    price: 2800,
+                    discount: 10,
+                    image: 'https://via.placeholder.com/300x400/f093fb/ffffff?text=Keyboard+3',
+                    category: 'all'
+                },
+                {
+                    id: 4,
+                    name: 'Wireless Mechanical',
+                    price: 5200,
+                    image: 'https://via.placeholder.com/300x400/4facfe/ffffff?text=Keyboard+4',
+                    category: 'all'
+                }
+                // Добавьте больше товаров по мере необходимости
             ]
+        }
+    },
+    computed: {
+        filteredProducts() {
+            let filtered = [...this.products];
+            
+            // Сортировка
+            switch (this.sortBy) {
+                case 'price_asc':
+                    filtered.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price_desc':
+                    filtered.sort((a, b) => b.price - a.price);
+                    break;
+                case 'name':
+                    filtered.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'popular':
+                    // Здесь можно добавить логику популярности
+                    break;
+            }
+            
+            return filtered;
         }
     },
     methods: {
         onCategorySelected(category) {
-            console.log('Selected category:', category.name)
-            // Здесь будет навигация к выбранной категории
+            if (category.id === 1) { // "Весь каталог"
+                this.selectedCategory = category;
+                this.showProducts = true;
+            } else {
+                console.log('Selected category:', category.name);
+                // Для других категорий показываем сообщение
+                this.$emit('show-message', `Категория "${category.name}" скоро будет доступна`);
+            }
+        },
+        backToCategories() {
+            this.showProducts = false;
+            this.selectedCategory = null;
+        },
+        openProductDetail(product) {
+            this.selectedProduct = product;
+            this.productDialog = true;
+        },
+        addToCart(product) {
+            console.log('Adding to cart:', product.name);
+            this.$emit('show-message', `Товар "${product.name}" добавлен в корзину`);
         }
     }
 }
 </script>
 
 <style scoped>
+.filters-bar {
+    position: sticky;
+    top: 150px; /* Под каруселью новостей */
+    z-index: 90;
+    background: var(--tg-theme-bg-color, #ffffff);
+    margin: 0 -16px;
+    padding: 0 16px;
+}
+
 .categories-grid {
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
 }
 </style>

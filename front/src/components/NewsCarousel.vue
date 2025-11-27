@@ -8,7 +8,9 @@
                     class="news-item"
                     @click="openNews(news)"
                 >
-                    <v-icon class="news-icon" size="small">{{ news.icon }}</v-icon>
+                    <div class="news-icon-container">
+                        <v-icon class="news-icon">{{ news.icon }}</v-icon>
+                    </div>
                     <span class="news-text">{{ news.title }}</span>
                 </div>
             </div>
@@ -40,30 +42,29 @@ export default {
 
 <style scoped>
 .news-carousel-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
 }
-    /* background: var(--tg-theme-bg-color, #ffffff);
-    border-bottom: 1px solid #e0e0e0;
-} */
 
 .news-carousel {
     height: 150px;
     padding: 16px 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .news-scroll {
     display: flex;
     overflow-x: auto;
-    gap: 16px;
+    gap: 12px;
     padding: 0 16px;
     height: 100%;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    align-items: center;
 }
 
 .news-scroll::-webkit-scrollbar {
@@ -77,32 +78,42 @@ export default {
     align-items: center;
     justify-content: center;
     min-width: 100px;
-    height: 120px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 12px;
-    padding: 8px;
+    height: 110px;
+    background: var(--tg-theme-bg-color, #ffffff);
+    border-radius: 16px;
+    padding: 12px 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--tg-theme-hint-color, #f0f0f0);
 }
 
 .news-item:hover {
-    background: rgba(255, 255, 255, 1);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
-.news-icon {
-    color: #667eea;
-    font-size: 2rem;
+.news-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--tg-theme-button-color, #2481cc);
+    border-radius: 12px;
     margin-bottom: 8px;
 }
 
+.news-icon {
+    color: white !important;
+    font-size: 24px;
+}
+
 .news-text {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 500;
     text-align: center;
-    color: #333;
+    color: var(--tg-theme-text-color, #000000);
     line-height: 1.2;
 }
 </style>
