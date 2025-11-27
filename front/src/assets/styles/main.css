@@ -1,0 +1,7 @@
+/* Главный файл импорта всех стилей */
+@import './global.css';
+@import './telegram-theme.css';
+@import './components/catalog.css';
+@import './components/product-card.css';
+@import './components/news-carousel.css';
+@import './components/category-card.css';

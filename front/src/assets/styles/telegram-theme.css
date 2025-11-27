@@ -1,0 +1,93 @@
+/* Стили темы Telegram */
+
+:root {
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-button-color: #2481cc;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f1f1f1;
+}
+
+/* Принудительное применение темы Telegram ко всем элементам */
+.v-application {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+/* Текстовые элементы */
+.v-card-title,
+.v-card-text,
+.v-list-item-title,
+.v-list-item-subtitle,
+.v-label,
+.v-field__input,
+.v-select__selection-text {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+/* Карточки */
+.v-card {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+  border: 1px solid var(--tg-theme-hint-color, #e0e0e0) !important;
+}
+
+/* Списки */
+.v-list {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.v-list-item {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+/* Поля ввода */
+.v-field {
+  background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.v-field__input {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.v-field__prepend-inner .v-icon {
+  color: var(--tg-theme-hint-color, #999999) !important;
+}
+
+/* Кнопки */
+.v-btn {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.v-btn--active {
+  color: var(--tg-theme-button-color, #2481cc) !important;
+  background: transparent !important;
+}
+
+.v-icon {
+  color: inherit !important;
+}
+
+/* Диалоги */
+.v-dialog .v-card {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+/* Селекты */
+.v-select .v-field {
+  background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+}
+
+.v-menu .v-overlay__content {
+  background: var(--tg-theme-bg-color, #ffffff) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.v-list-item--active {
+  background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+}

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="catalog-view">
         <!-- Новости показываем только в режиме категорий -->
         <NewsCarousel v-if="!showProducts" />
         
@@ -153,6 +153,9 @@ import CategoryCard from '@/components/CategoryCard.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import NewsCarousel from '@/components/NewsCarousel.vue'
 
+// Импортируем стили для каталога
+import '@/assets/styles/components/catalog.css'
+
 export default {
     name: 'CatalogView',
     components: {
@@ -286,54 +289,3 @@ export default {
 }
 </script>
 
-<style scoped>
-.with-news {
-  margin-top: 150px;
-}
-
-.without-news {
-  margin-top: 0;
-}
-
-.filters-bar {
-    position: sticky;
-    top: 0;
-    z-index: 90;
-    background: var(--tg-theme-bg-color, #ffffff);
-    margin: 0 -16px;
-    padding: 0 16px;
-    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
-}
-
-.filters-panel {
-    position: sticky;
-    top: 60px;
-    z-index: 89;
-    margin: 0 -16px;
-    padding: 0 16px;
-    background: var(--tg-theme-bg-color, #ffffff);
-}
-
-.categories-grid {
-    max-height: calc(100vh - 300px);
-    overflow-y: auto;
-}
-
-/* Стили для селектов в фильтрах */
-:deep(.v-select .v-field) {
-  background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
-  color: var(--tg-theme-text-color, #000000) !important;
-}
-
-:deep(.v-select .v-field__input) {
-  color: var(--tg-theme-text-color, #000000) !important;
-}
-
-:deep(.v-select .v-label) {
-  color: var(--tg-theme-text-color, #000000) !important;
-}
-
-.filter-btn, .back-btn {
-    color: var(--tg-theme-button-color, #2481cc) !important;
-}
-</style>
