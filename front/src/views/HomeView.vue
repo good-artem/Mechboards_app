@@ -117,13 +117,17 @@
                 </v-btn>
             </v-col>
         </v-row>
+        <ConnectionTest /> <!--  Временно для проверки подключения -->
     </v-container>
 </template>
 
 <script>
-import '@/assets/styles/components/home-view.css'
+import ConnectionTest from '@/components/ConnectionTest.vue'
 
 export default {
-    name: 'HomeView'
+    name: 'HomeView',
+    components: {
+        ConnectionTest
+    }
 }
 </script>

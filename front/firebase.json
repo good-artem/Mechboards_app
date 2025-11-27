@@ -5,6 +5,16 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "destination": "https://literate-happiness-jgjqgwvw67vfrxw-8000.app.github.dev"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
   }
 }

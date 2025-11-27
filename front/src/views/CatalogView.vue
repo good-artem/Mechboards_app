@@ -253,6 +253,7 @@ import NewsCarousel from '@/components/NewsCarousel.vue'
 import SearchBar from '@/components/SearchBar.vue'
 
 import '@/assets/styles/components/catalog-view.css'
+import { useApi } from '@/composables/useApi'
 
 export default {
     name: 'CatalogView',
@@ -341,7 +342,7 @@ export default {
     },
     methods: {
         formatPrice(price) {
-            return new Intl.NumberFormat('ru-RU').format(price) + ' ₽'
+            return new Intl.NumberFormat('ru-RU').format(price) + ' Р'
         },
         getProductImage(product) {
             if (product.images && product.images.length > 0) {
@@ -360,18 +361,48 @@ export default {
             return 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Image';
         },
         async fetchCategories() {
+            const { get, endpoints, error } = useApi()
+            
             this.loading = true;
             try {
-                const response = await fetch('/api/categories');
-                if (response.ok) {
-                    this.categories = await response.json();
-                } else {
-                    console.error('Ошибка загрузки категорий');
-                    this.categories = this.getFallbackCategories();
+                const categories = await get(endpoints.categories.list)
+                this.categories = categories
+                console.log('📦 Загружены категории:', categories)
+            } catch (err) {
+                console.error('❌ Ошибка загрузки категорий:', error.value)
+                this.categories = this.getFallbackCategories()
+            }
+            this.loading = false;
+        },
+
+        async fetchProducts(categoryId = null) {
+            const { get, endpoints } = useApi()
+            
+            this.loading = true;
+            try {
+                let url = endpoints.products.list
+                const params = new URLSearchParams()
+                
+                if (categoryId) {
+                    params.append('category_id', categoryId)
                 }
+                
+                if (this.searchQuery) {
+                    params.append('q', this.searchQuery)
+                }
+                
+                if (params.toString()) {
+                    url += `?${params.toString()}`
+                }
+                
+                const products = await get(url)
+                this.products = products
+                this.allProducts = [...products]
+                console.log('📦 Загружены товары:', products)
             } catch (error) {
-                console.error('Ошибка:', error);
-                this.categories = this.getFallbackCategories();
+                console.error('❌ Ошибка загрузки товаров:', error)
+                this.products = this.getFallbackProducts()
+                this.allProducts = [...this.products]
             }
             this.loading = false;
         },
@@ -398,40 +429,6 @@ export default {
                 console.log('Selected category:', category.name);
                 this.showMessage(`Категория "${category.name}" скоро будет доступна`);
             }
-        },
-        async fetchProducts(categoryId = null) {
-            this.loading = true;
-            try {
-                let url = '/api/products';
-                const params = new URLSearchParams();
-                
-                if (categoryId) {
-                    params.append('category_id', categoryId);
-                }
-                
-                if (this.searchQuery) {
-                    params.append('q', this.searchQuery);
-                }
-                
-                if (Object.keys(params).length > 0) {
-                    url += `?${params.toString()}`;
-                }
-                
-                const response = await fetch(url);
-                if (response.ok) {
-                    this.products = await response.json();
-                    this.allProducts = [...this.products]; // Сохраняем для локальной фильтрации
-                } else {
-                    console.error('Ошибка загрузки товаров');
-                    this.products = this.getFallbackProducts();
-                    this.allProducts = [...this.products];
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                this.products = this.getFallbackProducts();
-                this.allProducts = [...this.products];
-            }
-            this.loading = false;
         },
         getFallbackProducts() {
             return [

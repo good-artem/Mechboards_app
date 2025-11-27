@@ -2,13 +2,13 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from models import init_db, async_session
-import my_requests as rq
+from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News
 from sqlalchemy import select
 from typing import List, Optional
+import uuid
+from datetime import datetime
 
 # Pydantic модели для запросов
-
 class AddToCartRequest(BaseModel):
     telegram_id: int
     product_id: int
@@ -19,6 +19,11 @@ class CreateOrderRequest(BaseModel):
     shipping_method: str
     shipping_address: str
     customer_notes: Optional[str] = None
+
+class CreateUserRequest(BaseModel):
+    telegram_id: int
+    username: Optional[str] = None
+    name: Optional[str] = None
 
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
@@ -36,7 +41,72 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Новые endpoints для магазина
+# Users endpoints
+@app.get("/api/users/{telegram_id}")
+async def get_user(telegram_id: int):
+    async with async_session() as session:
+        result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return user
+
+@app.post("/api/users/create")
+async def create_user(request: CreateUserRequest):
+    async with async_session() as session:
+        # Проверяем, существует ли пользователь
+        result = await session.execute(
+            select(User).where(User.telegram_id == request.telegram_id)
+        )
+        existing_user = result.scalar_one_or_none()
+        
+        if existing_user:
+            return existing_user
+        
+        # Создаем нового пользователя
+        user = User(
+            telegram_id=request.telegram_id,
+            username=request.username,
+            name=request.name,
+            is_active=True
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        
+        return user
+
+@app.get("/api/users/{telegram_id}/stats")
+async def get_user_stats(telegram_id: int):
+    async with async_session() as session:
+        # Находим пользователя
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Считаем заказы пользователя
+        orders_result = await session.execute(
+            select(Order).where(Order.user_id == user.user_id)
+        )
+        orders = orders_result.scalars().all()
+        
+        # Считаем завершенные заказы
+        completed_orders = [order for order in orders if order.status.value == "Доставлен"]
+        
+        return {
+            "total_orders": len(orders),
+            "completed_orders": len(completed_orders)
+        }
+
+# Остальные существующие endpoints (категории, товары, корзина, заказы, новости)
 @app.get("/api/categories")
 async def get_categories():
     async with async_session() as session:
@@ -47,9 +117,9 @@ async def get_categories():
 @app.get("/api/products")
 async def get_products(category_id: Optional[int] = None, limit: int = 20, offset: int = 0):
     async with async_session() as session:
-        query = select(models.Product).where(models.Product.is_available == True)
+        query = select(Product).where(Product.is_available == True)
         if category_id:
-            query = query.where(models.Product.category_id == category_id)
+            query = query.where(Product.category_id == category_id)
         query = query.limit(limit).offset(offset)
         result = await session.execute(query)
         products = result.scalars().all()
@@ -58,7 +128,7 @@ async def get_products(category_id: Optional[int] = None, limit: int = 20, offse
 @app.get("/api/products/{product_id}")
 async def get_product(product_id: int):
     async with async_session() as session:
-        result = await session.execute(select(models.Product).where(models.Product.product_id == product_id))
+        result = await session.execute(select(Product).where(Product.product_id == product_id))
         product = result.scalar_one_or_none()
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -69,7 +139,7 @@ async def add_to_cart(request: AddToCartRequest):
     async with async_session() as session:
         # Находим пользователя
         user_result = await session.execute(
-            select(models.User).where(models.User.telegram_id == request.telegram_id)
+            select(User).where(User.telegram_id == request.telegram_id)
         )
         user = user_result.scalar_one_or_none()
         
@@ -78,18 +148,18 @@ async def add_to_cart(request: AddToCartRequest):
         
         # Находим или создаем корзину
         cart_result = await session.execute(
-            select(models.Cart).where(models.Cart.user_id == user.user_id)
+            select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
         
         if not cart:
-            cart = models.Cart(user_id=user.user_id)
+            cart = Cart(user_id=user.user_id)
             session.add(cart)
             await session.commit()
             await session.refresh(cart)
         
         # Добавляем товар в корзину
-        cart_item = models.CartItem(
+        cart_item = CartItem(
             cart_id=cart.cart_id,
             product_id=request.product_id,
             quantity=request.quantity
@@ -104,7 +174,7 @@ async def get_cart(telegram_id: int):
     async with async_session() as session:
         # Находим пользователя и его корзину
         user_result = await session.execute(
-            select(models.User).where(models.User.telegram_id == telegram_id)
+            select(User).where(User.telegram_id == telegram_id)
         )
         user = user_result.scalar_one_or_none()
         
@@ -112,7 +182,7 @@ async def get_cart(telegram_id: int):
             raise HTTPException(status_code=404, detail="User not found")
         
         cart_result = await session.execute(
-            select(models.Cart).where(models.Cart.user_id == user.user_id)
+            select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
         
@@ -121,7 +191,7 @@ async def get_cart(telegram_id: int):
         
         # Получаем товары в корзине
         cart_items_result = await session.execute(
-            select(models.CartItem).where(models.CartItem.cart_id == cart.cart_id)
+            select(CartItem).where(CartItem.cart_id == cart.cart_id)
         )
         cart_items = cart_items_result.scalars().all()
         
@@ -130,7 +200,7 @@ async def get_cart(telegram_id: int):
         
         for item in cart_items:
             product_result = await session.execute(
-                select(models.Product).where(models.Product.product_id == item.product_id)
+                select(Product).where(Product.product_id == item.product_id)
             )
             product = product_result.scalar_one()
             
@@ -149,7 +219,7 @@ async def create_order(request: CreateOrderRequest):
     async with async_session() as session:
         # Находим пользователя и его корзину
         user_result = await session.execute(
-            select(models.User).where(models.User.telegram_id == request.telegram_id)
+            select(User).where(User.telegram_id == request.telegram_id)
         )
         user = user_result.scalar_one_or_none()
         
@@ -157,7 +227,7 @@ async def create_order(request: CreateOrderRequest):
             raise HTTPException(status_code=404, detail="User not found")
         
         cart_result = await session.execute(
-            select(models.Cart).where(models.Cart.user_id == user.user_id)
+            select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
         
@@ -166,7 +236,7 @@ async def create_order(request: CreateOrderRequest):
         
         # Получаем товары из корзины
         cart_items_result = await session.execute(
-            select(models.CartItem).where(models.CartItem.cart_id == cart.cart_id)
+            select(CartItem).where(CartItem.cart_id == cart.cart_id)
         )
         cart_items = cart_items_result.scalars().all()
         
@@ -177,16 +247,15 @@ async def create_order(request: CreateOrderRequest):
         total_amount = 0
         for item in cart_items:
             product_result = await session.execute(
-                select(models.Product).where(models.Product.product_id == item.product_id)
+                select(Product).where(Product.product_id == item.product_id)
             )
             product = product_result.scalar_one()
             total_amount += float(product.price) * item.quantity
         
         # Создаем заказ
-        import uuid
         order_number = f"ORDER-{uuid.uuid4().hex[:8].upper()}"
         
-        order = models.Order(
+        order = Order(
             user_id=user.user_id,
             order_number=order_number,
             total_amount=total_amount,
@@ -201,11 +270,11 @@ async def create_order(request: CreateOrderRequest):
         # Добавляем товары в заказ
         for item in cart_items:
             product_result = await session.execute(
-                select(models.Product).where(models.Product.product_id == item.product_id)
+                select(Product).where(Product.product_id == item.product_id)
             )
             product = product_result.scalar_one()
             
-            order_item = models.OrderItem(
+            order_item = OrderItem(
                 order_id=order.order_id,
                 product_id=item.product_id,
                 quantity=item.quantity,
@@ -216,7 +285,7 @@ async def create_order(request: CreateOrderRequest):
         
         # Очищаем корзину
         await session.execute(
-            models.CartItem.__table__.delete().where(models.CartItem.cart_id == cart.cart_id)
+            CartItem.__table__.delete().where(CartItem.cart_id == cart.cart_id)
         )
         
         await session.commit()
@@ -227,7 +296,6 @@ async def create_order(request: CreateOrderRequest):
 async def get_news():
     async with async_session() as session:
         # Получаем только активные новости, которые еще не истекли
-        from datetime import datetime
         result = await session.execute(
             select(News).where(
                 News.is_active == True,
