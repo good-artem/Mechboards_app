@@ -1,118 +1,47 @@
-import { createApp } from 'vue'
-import App from './App.vue'
-import router from './router'
+import { createRouter, createWebHistory } from 'vue-router'
 
-import '@/assets/styles/main.css'
-
-// Vuetify
-import 'vuetify/styles'
-import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
-import '@mdi/font/css/materialdesignicons.css'
-
-// Определяем тему по умолчанию на основе Telegram
-const getDefaultTheme = () => {
-  if (window.Telegram?.WebApp) {
-    return window.Telegram.WebApp.colorScheme === 'dark' ? 'dark' : 'light'
-  }
-  return 'light'
-}
-
-const vuetify = createVuetify({
-  components,
-  directives,
-  theme: {
-    defaultTheme: getDefaultTheme(),
-    themes: {
-      light: {
-        colors: {
-          primary: '#2481cc',
-          secondary: '#424242',
-          accent: '#82B1FF',
-          error: '#FF5252',
-          info: '#2196F3',
-          success: '#4CAF50',
-          warning: '#FFC107',
-          background: '#ffffff',
-          surface: '#ffffff',
-        }
-      },
-      dark: {
-        colors: {
-          primary: '#2481cc',
-          secondary: '#424242',
-          accent: '#82B1FF',
-          error: '#FF5252',
-          info: '#2196F3',
-          success: '#4CAF50',
-          warning: '#FFC107',
-          background: '#1e1e1e',
-          surface: '#2d2d2d',
-        }
-      }
-    }
+const routes = [
+  {
+    path: '/',
+    name: 'home',
+    component: () => import('@/views/HomeView.vue')
   },
-  defaults: {
-    VBtn: {
-      color: 'primary',
-      variant: 'flat',
-      rounded: 'lg',
-    },
-    VCard: {
-      rounded: 'lg',
-    },
-    VTextField: {
-      variant: 'outlined',
-      density: 'comfortable',
-    },
-    VSelect: {
-      variant: 'outlined',
-      density: 'comfortable',
-    },
-    VTextarea: {
-      variant: 'outlined',
-      density: 'comfortable',
-    }
+  {
+    path: '/catalog',
+    name: 'catalog', 
+    component: () => import('@/views/CatalogView.vue'),
+    // Можно добавить props для передачи параметров через URL
+    props: (route) => ({
+      category: route.query.category,
+      filter: route.query.filter,
+      search: route.query.search
+    })
+  },
+  {
+    path: '/support',
+    name: 'support',
+    component: () => import('@/views/SupportView.vue')
+  },
+  {
+    path: '/cart',
+    name: 'cart',
+    component: () => import('@/views/CartView.vue')
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: () => import('@/views/ProfileView.vue')
+  },
+  // Добавим catch-all route для 404
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
 })
 
-const app = createApp(App)
-
-// Инициализация Telegram Web App
-if (window.Telegram?.WebApp) {
-  window.Telegram.WebApp.ready()
-  window.Telegram.WebApp.expand()
-  
-  // Устанавливаем тему приложения в зависимости от Telegram
-  const setAppTheme = () => {
-    const theme = window.Telegram.WebApp.colorScheme
-    document.documentElement.setAttribute('data-theme', theme)
-    
-    // Также обновляем тему Vuetify
-    vuetify.theme.global.name.value = theme
-  }
-  
-  // Устанавливаем тему при загрузке
-  setAppTheme()
-  
-  // Слушаем изменения темы
-  window.Telegram.WebApp.onEvent('themeChanged', setAppTheme)
-  
-  // Настраиваем основные параметры
-  window.Telegram.WebApp.setHeaderColor('#2481cc')
-  window.Telegram.WebApp.setBackgroundColor('#f8f9fa')
-}
-
-app.use(router)
-app.use(vuetify)
-
-app.mount('#app')
-
-// Глобальная обработка ошибок
-app.config.errorHandler = (err, instance, info) => {
-  console.error('Vue error:', err, 'in', instance, 'at', info)
-}
-
-// Глобальные свойства для доступа к Telegram Web App
-app.config.globalProperties.$telegram = window.Telegram?.WebApp || null
+export default router
