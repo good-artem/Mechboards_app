@@ -22,7 +22,10 @@ async def seed_database():
 
             # Создаем категории
             categories_data = [
+<<<<<<< HEAD
                 Category(name="Весь каталог", description="Весь каталог", icon="mdi-keyboard"),
+=======
+>>>>>>> 20273dc3bade9b3a6dcca17e4643298b31f3eb06
                 Category(name="Механические клавиатуры", description="Полноразмерные и компактные механические клавиатуры", icon="mdi-keyboard"),
                 Category(name="Свитчи", description="Механические переключатели для клавиатур", icon="mdi-circle-multiple"),
                 Category(name="Кейкапы", description="Колпачки для клавиш", icon="mdi-checkbox-multiple-blank"),
