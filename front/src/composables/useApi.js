@@ -11,11 +11,7 @@ export function useApi() {
 
     try {
       const url = API_CONFIG.getUrl(endpoint)
-<<<<<<< HEAD
       console.log('🔄 API Request to:', url)
-=======
-      console.log('🔄 API Request to:', url) // Для отладки
->>>>>>> 20273dc3bade9b3a6dcca17e4643298b31f3eb06
       
       const response = await fetch(url, {
         headers: {
