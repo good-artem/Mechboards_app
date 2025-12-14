@@ -296,7 +296,11 @@ export default {
             categories: [],
             products: [],
             loading: false,
-            allProducts: [] // Все товары для локальной фильтрации
+            allProducts: [], // Все товары для локальной фильтрации
+            snackbar: false,
+            snackbarMessage: '',
+            snackbarColor: 'success'
+            
         }
     },
     async mounted() {
@@ -574,6 +578,16 @@ export default {
         },
         showMessage(message) {
             this.$emit('show-message', message);
+        },
+        showMessage(message, type = 'success') {
+            this.snackbarMessage = message;
+            this.snackbarColor = type === 'error' ? 'error' : 'success';
+            this.snackbar = true;
+            
+            // Автоматическое скрытие
+            setTimeout(() => {
+                this.snackbar = false;
+            }, 3000);
         }
     }
 }

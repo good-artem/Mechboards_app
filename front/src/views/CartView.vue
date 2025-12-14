@@ -150,9 +150,11 @@
                     <v-textarea
                         v-model="orderData.customer_notes"
                         label="Комментарий к заказу"
-                        placeholder="Дополнительные пожелания"
+                        placeholder="Дополнительные пожелания..."
                         variant="outlined"
-                        rows="2"
+                        rows="3"
+                        class="mb-4"
+                        no-resize
                     ></v-textarea>
                 </v-card-text>
                 <v-card-actions class="order-dialog-actions">
@@ -200,15 +202,20 @@ export default {
             ],
             updatingItemId: null,
             removingItemId: null,
-            loading: false
+            loading: false,
+            userProfile: null
         }
     },
     async mounted() {
         await this.fetchCart();
+        await this.loadUserProfile();
     },
     methods: {
         formatPrice(price) {
-            return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
+            return new Intl.NumberFormat('ru-BY', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(price) + ' р.';
         },
         
         getProductImage(product) {
@@ -301,6 +308,10 @@ export default {
         },
         
         createOrder() {
+            // Автозаполнение адреса из профиля
+            if (this.userProfile && this.userProfile.address) {
+                this.orderData.shipping_address = this.userProfile.address;
+            }
             this.orderDialog = true;
         },
         
@@ -337,6 +348,17 @@ export default {
                 this.$emit('show-message', `Ошибка: ${error.message || 'Не удалось создать заказ'}`);
             } finally {
                 this.creatingOrder = false;
+            }
+        },
+        async loadUserProfile() {
+            try {
+                const { get, endpoints } = useApi();
+                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (tg_user) {
+                    this.userProfile = await get(endpoints.users.profile(tg_user.id));
+                }
+            } catch (error) {
+                console.error('Error loading user profile:', error);
             }
         }
     }

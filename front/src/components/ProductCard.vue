@@ -12,16 +12,12 @@
                 </div>
             </div>
             
-            <!-- Скидка (если будет в будущем) -->
-            <div v-if="product.discount_percent" class="product-discount">
-                -{{ product.discount_percent }}%
-            </div>
-            
             <!-- Кнопка добавления в корзину -->
             <button 
                 class="add-to-cart-btn" 
                 @click.stop="addToCart"
                 :disabled="product.stock_quantity === 0 || addingToCart"
+                :title="product.stock_quantity === 0 ? 'Нет в наличии' : 'Добавить в корзину'"
             >
                 <v-icon v-if="!addingToCart">mdi-cart-plus</v-icon>
                 <v-progress-circular 
@@ -54,63 +50,126 @@ export default {
     },
     methods: {
         formatPrice(price) {
-            return new Intl.NumberFormat('ru-RU').format(price) + ' ₽'
+            return new Intl.NumberFormat('ru-BY', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(price) + ' р.';
         },
+        
         getProductImage(product) {
-            // Обрабатываем поле images из бэкенда (JSON массив)
-            if (product.images && product.images.length > 0) {
-                // Если images - это массив URL
-                if (Array.isArray(product.images)) {
-                    return product.images[0];
-                }
-                // Если images - это JSON строка, пытаемся распарсить
+            if (product.images) {
                 try {
-                    const parsedImages = JSON.parse(product.images);
-                    if (Array.isArray(parsedImages) && parsedImages.length > 0) {
-                        return parsedImages[0];
+                    // Если images это строка JSON
+                    if (typeof product.images === 'string') {
+                        const parsedImages = JSON.parse(product.images);
+                        if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+                            return parsedImages[0];
+                        }
+                    }
+                    // Если images это массив
+                    if (Array.isArray(product.images) && product.images.length > 0) {
+                        return product.images[0];
                     }
                 } catch (e) {
                     console.warn('Cannot parse product images:', e);
                 }
             }
-            
-            // Fallback изображение
             return 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Image';
         },
+        
         openProduct() {
             this.$emit('product-click', this.product)
         },
+        
         async addToCart() {
-    if (this.product.stock_quantity === 0) return;
-    
-    this.addingToCart = true;
-    
-    try {
-        const { post, endpoints } = useApi();
-        const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+            if (this.product.stock_quantity === 0) {
+                console.log('❌ Product out of stock');
+                return;
+            }
+            
+            this.addingToCart = true;
+            console.log('🔄 Adding to cart:', this.product.product_id);
+            
+            try {
+                // Получаем пользователя Telegram
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                if (!tg_user) {
+                    console.error('❌ Telegram user not found');
+                    this.showMessage('Ошибка: пользователь не найден');
+                    return;
+                }
+
+                // Формируем URL для API
+                const apiBaseUrl = this.getApiBaseUrl();
+                const addToCartUrl = `${apiBaseUrl}/api/cart/add`;
+                
+                console.log('📤 Sending request to:', addToCartUrl);
+                console.log('📤 Request body:', {
+                    telegram_id: tg_user.id,
+                    product_id: this.product.product_id,
+                    quantity: 1
+                });
+
+                const response = await fetch(addToCartUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        telegram_id: tg_user.id,
+                        product_id: this.product.product_id,
+                        quantity: 1
+                    })
+                });
+
+                console.log('📥 Response status:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Added to cart:', result);
+                    
+                    // Отправляем события
+                    this.$emit('add-to-cart', this.product);
+                    this.showMessage(`✅ "${this.product.name}" добавлен в корзину`);
+                    this.$emit('cart-updated');
+                    
+                } else {
+                    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                    console.error('❌ Error response:', error);
+                    this.showMessage(`❌ Ошибка: ${error.detail || 'Не удалось добавить в корзину'}`);
+                }
+            } catch (error) {
+                console.error('❌ Network error:', error);
+                this.showMessage('❌ Ошибка соединения с сервером');
+            } finally {
+                this.addingToCart = false;
+            }
+        },
         
-        if (!tg_user) {
-            this.$emit('show-message', 'Ошибка: пользователь не найден');
-            return;
+        getApiBaseUrl() {
+            // Проверяем переменные окружения
+            if (import.meta.env.VITE_API_BASE_URL) {
+                return import.meta.env.VITE_API_BASE_URL;
+            }
+            
+            // Определяем среду
+            if (import.meta.env.MODE === 'development') {
+                return 'http://localhost:8000';
+            } else {
+                return 'https://literate-happiness-jgjqgwvw67vfrxw-8000.app.github.dev';
+            }
+        },
+        
+        showMessage(message) {
+            // Используем родительский компонент для показа сообщений
+            if (this.$parent && this.$parent.showMessage) {
+                this.$parent.showMessage(message);
+            } else if (this.$root && this.$root.showMessage) {
+                this.$root.showMessage(message);
+            } else {
+                console.log('Message:', message);
+            }
         }
-
-        await post(endpoints.cart.add, {
-            telegram_id: tg_user.id,
-            product_id: this.product.product_id,
-            quantity: 1
-        });
-
-        this.$emit('add-to-cart', this.product);
-        this.$emit('show-message', `Товар "${this.product.name}" добавлен в корзину`);
-        this.$emit('cart-updated');
-        
-    } catch (error) {
-        console.error('Error adding to cart:', error);
-        this.$emit('show-message', 'Ошибка: ' + (error.message || 'Не удалось добавить в корзину'));
-    } finally {
-        this.addingToCart = false;
-    }
-}
     }
 }
 </script>

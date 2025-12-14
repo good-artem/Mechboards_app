@@ -22,29 +22,38 @@
 </template>
 
 <script>
-
-import '@/assets/styles/components/navbar.css'
+import { useApi } from '@/composables/useApi'
 
 export default {
     name: "Navbar",
     data() {
         return {
-            cartItemsCount: 0
+            cartItemsCount: 0,
+            unsubscribeEvents: null
         }
     },
     async mounted() {
         await this.fetchCartCount();
+        
+        // Подписываемся на события обновления корзины
+        this.unsubscribeEvents = this.$root.$on('cart-updated', this.fetchCartCount);
+    },
+    beforeUnmount() {
+        // Отписываемся от событий
+        if (this.unsubscribeEvents) {
+            this.unsubscribeEvents();
+        }
     },
     methods: {
         async fetchCartCount() {
             try {
                 const { get, endpoints } = useApi();
-                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
                 
                 if (tg_user) {
                     const cartData = await get(endpoints.cart.get(tg_user.id));
                     this.cartItemsCount = cartData.items?.length || 0;
-                    console.log('🛒 Cart count:', this.cartItemsCount);
+                    console.log('🛒 Cart count updated:', this.cartItemsCount);
                 }
             } catch (error) {
                 console.error('❌ Ошибка загрузки корзины:', error);
@@ -53,3 +62,7 @@ export default {
     }
 }
 </script>
+
+<style scoped>
+@import '@/assets/styles/components/navbar.css';
+</style>
