@@ -2,6 +2,7 @@ import asyncio
 import sys
 import os
 from datetime import datetime, timedelta
+import json  # Добавьте в начало, если нет
 
 # Добавляем путь к текущей директории для импортов
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -12,196 +13,300 @@ from sqlalchemy import select
 async def seed_database():
     async with async_session() as session:
         try:
-            # Проверяем, есть ли уже данные
-            existing_categories = await session.execute(select(Category))
-            if existing_categories.scalars().first():
-                print("База уже содержит данные, пропускаем заполнение")
-                return
+            print("Начинаем заполнение/обновление базы тестовыми данными...")
 
-            print("Начинаем заполнение базы тестовыми данными...")
-
-            # Создаем категории
+            # 1. КАТЕГОРИИ - upsert (обновляем если есть, создаем если нет)
             categories_data = [
-                Category(name="Весь каталог", description="Весь каталог", icon="mdi-keyboard"),
-                Category(name="Механические клавиатуры", description="Полноразмерные и компактные механические клавиатуры", icon="mdi-keyboard"),
-                Category(name="Свитчи", description="Механические переключатели для клавиатур", icon="mdi-circle-multiple"),
-                Category(name="Кейкапы", description="Колпачки для клавиш", icon="mdi-checkbox-multiple-blank"),
-                Category(name="Стабилизаторы", description="Стабилизаторы для длинных клавиш", icon="mdi-arrow-split-vertical"),
-                Category(name="Смазка и моддинг", description="Материалы для модификации клавиатур", icon="mdi-bottle-tonic"),
-                Category(name="Аксессуары", description="Кабели, коврики и другие аксессуары", icon="mdi-cable-data"),
-                Category(name="Скидки", description="Товары со скидкой", icon="mdi-sale"),
-                Category(name="БУ клавиатуры", description="Бывшие в употреблении клавиатуры", icon="mdi-keyboard-return"),
+                {"name": "Весь каталог", "description": "Весь каталог", "icon": "mdi-keyboard"},
+                {"name": "Механические клавиатуры", "description": "Полноразмерные и компактные механические клавиатуры", "icon": "mdi-keyboard"},
+                {"name": "Свитчи", "description": "Механические переключатели для клавиатур", "icon": "mdi-circle-multiple"},
+                {"name": "Кейкапы", "description": "Колпачки для клавиш", "icon": "mdi-checkbox-multiple-blank"},
+                {"name": "Стабилизаторы", "description": "Стабилизаторы для длинных клавиш", "icon": "mdi-arrow-split-vertical"},
+                {"name": "Смазка и моддинг", "description": "Материалы для модификации клавиатур", "icon": "mdi-bottle-tonic"},
+                {"name": "Аксессуары", "description": "Кабели, коврики и другие аксессуары", "icon": "mdi-cable-data"},
+                {"name": "Скидки", "description": "Товары со скидкой", "icon": "mdi-sale"},
+                {"name": "БУ клавиатуры", "description": "Бывшие в употреблении клавиатуры", "icon": "mdi-keyboard-return"},
             ]
 
-            session.add_all(categories_data)
-            await session.flush()
-            print("✅ Категории созданы")
+            created_categories = []
+            for cat_data in categories_data:
+                # Проверяем, существует ли категория с таким именем
+                result = await session.execute(
+                    select(Category).where(Category.name == cat_data["name"])
+                )
+                category = result.scalar_one_or_none()
+                
+                if category:
+                    # Обновляем существующую категорию
+                    category.description = cat_data["description"]
+                    category.icon = cat_data["icon"]
+                    print(f"📝 Обновлена категория: {cat_data['name']}")
+                else:
+                    # Создаем новую категорию
+                    category = Category(
+                        name=cat_data["name"],
+                        description=cat_data["description"],
+                        icon=cat_data["icon"]
+                    )
+                    session.add(category)
+                    print(f"✅ Создана категория: {cat_data['name']}")
+                
+                created_categories.append(category)
+            
+            await session.flush()  # Сохраняем, чтобы получить ID
+            print("✅ Категории обновлены/созданы")
 
-            # Создаем товары
+            # 2. ТОВАРЫ - upsert по названию
             products_data = [
-                Product(
-                    name="Keychron K2",
-                    description="Компактная 75% механическая клавиатура с Bluetooth",
-                    price=4500.00,
-                    stock_quantity=15,
-                    category_id=categories_data[0].category_id,
-                    images=json.dumps([
+                {
+                    "name": "Keychron K2",
+                    "description": "Компактная 75% механическая клавиатура с Bluetooth",
+                    "price": 4500.00,
+                    "stock_quantity": 15,
+                    "category_id": created_categories[0].category_id,
+                    "images": [
                         "/assets/images/products/Keychron_k2/Keychron_k2_1.png",
                         "/assets/images/products/Keychron_k2/Keychron_k2_2.png",
                         "/assets/images/products/Keychron_k2/Keychron_k2_3.png"
-                    ]),                    
-                    is_available=True
-                ),
-                Product(
-                    name="Gateron Yellow Switches",
-                    description="Линейные свитчи Gateron Yellow (35 шт)",
-                    price=800.00,
-                    stock_quantity=50,
-                    category_id=categories_data[1].category_id,
-                    images=json.dumps([
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "Gateron Yellow Switches",
+                    "description": "Линейные свитчи Gateron Yellow (35 шт)",
+                    "price": 800.00,
+                    "stock_quantity": 50,
+                    "category_id": created_categories[1].category_id,
+                    "images": [
                         "/assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_1.png",
                         "/assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_2.png",
                         "/assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_3.png"
-                    ]),                      
-                    is_available=True
-                ),
-                Product(
-                    name="PBT Keycaps Set",
-                    description="Набор кейкапов из PBT пластика",
-                    price=1200.00,
-                    stock_quantity=25,
-                    category_id=categories_data[2].category_id,
-                    images=json.dumps([
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "PBT Keycaps Set",
+                    "description": "Набор кейкапов из PBT пластика",
+                    "price": 1200.00,
+                    "stock_quantity": 25,
+                    "category_id": created_categories[2].category_id,
+                    "images": [
                         "/assets/images/products/PBT_keycaps_set/PBT_keycaps_set_1.png",
                         "/assets/images/products/PBT_keycaps_set/PBT_keycaps_set_2.png",
                         "/assets/images/products/PBT_keycaps_set/PBT_keycaps_set_3.png"
-                    ]),                      
-                    is_available=True
-                ),
-                Product(
-                    name="Стабилизаторы Cherry",
-                    description="Набор стабилизаторов для клавиатуры",
-                    price=400.00,
-                    stock_quantity=30,
-                    category_id=categories_data[3].category_id,
-                    images=json.dumps([
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "Стабилизаторы Cherry",
+                    "description": "Набор стабилизаторов для клавиатуры",
+                    "price": 400.00,
+                    "stock_quantity": 30,
+                    "category_id": created_categories[3].category_id,
+                    "images": [
                         "/assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_1.png",
                         "/assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_2.png",
-                    ]),                      
-                    is_available=True
-                ),
-                Product(
-                    name="Смазка Krytox 205g0",
-                    description="Смазка для свитчей и стабилизаторов",
-                    price=600.00,
-                    stock_quantity=20,
-                    category_id=categories_data[4].category_id,
-                    images=json.dumps([
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "Смазка Krytox 205g0",
+                    "description": "Смазка для свитчей и стабилизаторов",
+                    "price": 600.00,
+                    "stock_quantity": 20,
+                    "category_id": created_categories[4].category_id,
+                    "images": [
                         "/assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_1.png",
                         "/assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_2.png",
-                    ]),                      
-                    is_available=True
-                ),
+                    ],
+                    "is_available": True
+                },
             ]
 
-            session.add_all(products_data)
-            print("✅ Товары созданы")
-
-            # Создаем услуги
-            services_data = [
-                Service(
-                    name="Сборка клавиатуры",
-                    description="Профессиональная сборка механической клавиатуры",
-                    price=1500.00,
-                    duration="2-3 дня",
-                    category="Сборка",
-                    is_active=True
-                ),
-                Service(
-                    name="Лубрикация свитчей",
-                    description="Смазка механических переключателей",
-                    price=800.00,
-                    duration="1-2 дня",
-                    category="Моддинг",
-                    is_active=True
-                ),
-                Service(
-                    name="Замена стабилизаторов",
-                    description="Замена и настройка стабилизаторов",
-                    price=500.00,
-                    duration="1 день",
-                    category="Ремонт",
-                    is_active=True
-                ),
-            ]
-
-            session.add_all(services_data)
-            print("✅ Услуги созданы")
-
-            # Создаем новости
-            news_data = [
-                News(
-                    title="Новые клавиатуры",
-                    description="Поступление новых механических клавиатур",
-                    icon="mdi-keyboard",
-                    image_url="https://via.placeholder.com/300x150/667eea/ffffff?text=New+Keyboards",
-                    news_type="new_products",
-                    action_url="/catalog?filter=new",
-                    is_active=True,
-                    expires_at=datetime.now() + timedelta(days=30)
-                ),
-                News(
-                    title="Скидки 20%",
-                    description="Специальные предложения на selected товары",
-                    icon="mdi-sale",
-                    image_url="https://via.placeholder.com/300x150/764ba2/ffffff?text=Discount+20%",
-                    news_type="discount",
-                    action_url="/catalog?filter=discount",
-                    is_active=True,
-                    expires_at=datetime.now() + timedelta(days=15)
-                ),
-                News(
-                    title="Доставка за 24ч",
-                    description="Экспресс-доставка по Москве и области",
-                    icon="mdi-truck-fast",
-                    image_url="https://via.placeholder.com/300x150/f093fb/ffffff?text=Fast+Delivery",
-                    news_type="delivery",
-                    action_url="/support",
-                    is_active=True,
-                    expires_at=datetime.now() + timedelta(days=60)
-                ),
-                News(
-                    title="Кейкапы",
-                    description="Новая коллекция кейкапов",
-                    icon="mdi-circle-multiple",
-                    image_url="https://via.placeholder.com/300x150/4facfe/ffffff?text=Keycaps",
-                    news_type="category",
-                    action_url="/catalog?category=keycaps",
-                    is_active=True,
-                    expires_at=datetime.now() + timedelta(days=45)
-                ),
-                News(
-                    title="Аксессуары",
-                    description="Кабели, коврики и другие аксессуары",
-                    icon="mdi-cable-data",
-                    image_url="https://via.placeholder.com/300x150/43e97b/ffffff?text=Accessories",
-                    news_type="category",
-                    action_url="/catalog?category=accessories",
-                    is_active=True,
-                    expires_at=datetime.now() + timedelta(days=30)
+            for prod_data in products_data:
+                result = await session.execute(
+                    select(Product).where(Product.name == prod_data["name"])
                 )
+                product = result.scalar_one_or_none()
+                
+                if product:
+                    # Обновляем существующий товар
+                    product.description = prod_data["description"]
+                    product.price = prod_data["price"]
+                    product.category_id = prod_data["category_id"]
+                    product.images = json.dumps(prod_data["images"])
+                    product.is_available = prod_data["is_available"]
+                    # Не обновляем stock_quantity чтобы не сбрасывать остатки
+                    # product.stock_quantity = prod_data["stock_quantity"]
+                    print(f"📝 Обновлен товар: {prod_data['name']}")
+                else:
+                    # Создаем новый товар
+                    product = Product(
+                        name=prod_data["name"],
+                        description=prod_data["description"],
+                        price=prod_data["price"],
+                        stock_quantity=prod_data["stock_quantity"],
+                        category_id=prod_data["category_id"],
+                        images=json.dumps(prod_data["images"]),
+                        is_available=prod_data["is_available"]
+                    )
+                    session.add(product)
+                    print(f"✅ Создан товар: {prod_data['name']}")
+            
+            print("✅ Товары обновлены/созданы")
+
+            # 3. УСЛУГИ - upsert по названию
+            services_data = [
+                {
+                    "name": "Сборка клавиатуры",
+                    "description": "Профессиональная сборка механической клавиатуры",
+                    "price": 1500.00,
+                    "duration": "2-3 дня",
+                    "category": "Сборка",
+                    "is_active": True
+                },
+                {
+                    "name": "Лубрикация свитчей",
+                    "description": "Смазка механических переключателей",
+                    "price": 800.00,
+                    "duration": "1-2 дня",
+                    "category": "Моддинг",
+                    "is_active": True
+                },
+                {
+                    "name": "Замена стабилизаторов",
+                    "description": "Замена и настройка стабилизаторов",
+                    "price": 500.00,
+                    "duration": "1 день",
+                    "category": "Ремонт",
+                    "is_active": True
+                },
             ]
 
-            session.add_all(news_data)
-            print("✅ Новости созданы")
+            for serv_data in services_data:
+                result = await session.execute(
+                    select(Service).where(Service.name == serv_data["name"])
+                )
+                service = result.scalar_one_or_none()
+                
+                if service:
+                    # Обновляем существующую услугу
+                    service.description = serv_data["description"]
+                    service.price = serv_data["price"]
+                    service.duration = serv_data["duration"]
+                    service.category = serv_data["category"]
+                    service.is_active = serv_data["is_active"]
+                    print(f"📝 Обновлена услуга: {serv_data['name']}")
+                else:
+                    # Создаем новую услугу
+                    service = Service(
+                        name=serv_data["name"],
+                        description=serv_data["description"],
+                        price=serv_data["price"],
+                        duration=serv_data["duration"],
+                        category=serv_data["category"],
+                        is_active=serv_data["is_active"]
+                    )
+                    session.add(service)
+                    print(f"✅ Создана услуга: {serv_data['name']}")
+            
+            print("✅ Услуги обновлены/созданы")
+
+            # 4. НОВОСТИ - upsert по заголовку
+            news_data = [
+                {
+                    "title": "Новые клавиатуры",
+                    "description": "Поступление новых механических клавиатур",
+                    "icon": "mdi-keyboard",
+                    "image_url": "https://via.placeholder.com/300x150/667eea/ffffff?text=New+Keyboards",
+                    "news_type": "new_products",
+                    "action_url": "/catalog?filter=new",
+                    "is_active": True,
+                    "expires_at": datetime.now() + timedelta(days=30)
+                },
+                {
+                    "title": "Скидки 20%",
+                    "description": "Специальные предложения на selected товары",
+                    "icon": "mdi-sale",
+                    "image_url": "https://via.placeholder.com/300x150/764ba2/ffffff?text=Discount+20%",
+                    "news_type": "discount",
+                    "action_url": "/catalog?filter=discount",
+                    "is_active": True,
+                    "expires_at": datetime.now() + timedelta(days=15)
+                },
+                {
+                    "title": "Доставка за 24ч",
+                    "description": "Экспресс-доставка по Москве и области",
+                    "icon": "mdi-truck-fast",
+                    "image_url": "https://via.placeholder.com/300x150/f093fb/ffffff?text=Fast+Delivery",
+                    "news_type": "delivery",
+                    "action_url": "/support",
+                    "is_active": True,
+                    "expires_at": datetime.now() + timedelta(days=60)
+                },
+                {
+                    "title": "Кейкапы",
+                    "description": "Новая коллекция кейкапов",
+                    "icon": "mdi-circle-multiple",
+                    "image_url": "https://via.placeholder.com/300x150/4facfe/ffffff?text=Keycaps",
+                    "news_type": "category",
+                    "action_url": "/catalog?category=keycaps",
+                    "is_active": True,
+                    "expires_at": datetime.now() + timedelta(days=45)
+                },
+                {
+                    "title": "Аксессуары",
+                    "description": "Кабели, коврики и другие аксессуары",
+                    "icon": "mdi-cable-data",
+                    "image_url": "https://via.placeholder.com/300x150/43e97b/ffffff?text=Accessories",
+                    "news_type": "category",
+                    "action_url": "/catalog?category=accessories",
+                    "is_active": True,
+                    "expires_at": datetime.now() + timedelta(days=30)
+                }
+            ]
+
+            for news_item in news_data:
+                result = await session.execute(
+                    select(News).where(News.title == news_item["title"])
+                )
+                news = result.scalar_one_or_none()
+                
+                if news:
+                    # Обновляем существующую новость
+                    news.description = news_item["description"]
+                    news.icon = news_item["icon"]
+                    news.image_url = news_item["image_url"]
+                    news.news_type = news_item["news_type"]
+                    news.action_url = news_item["action_url"]
+                    news.is_active = news_item["is_active"]
+                    news.expires_at = news_item["expires_at"]
+                    print(f"📝 Обновлена новость: {news_item['title']}")
+                else:
+                    # Создаем новую новость
+                    news = News(
+                        title=news_item["title"],
+                        description=news_item["description"],
+                        icon=news_item["icon"],
+                        image_url=news_item["image_url"],
+                        news_type=news_item["news_type"],
+                        action_url=news_item["action_url"],
+                        is_active=news_item["is_active"],
+                        expires_at=news_item["expires_at"]
+                    )
+                    session.add(news)
+                    print(f"✅ Создана новость: {news_item['title']}")
+            
+            print("✅ Новости обновлены/созданы")
 
             await session.commit()
-            print("✅ Тестовые данные успешно добавлены в базу!")
+            print("✅ База данных успешно обновлена!")
 
         except Exception as e:
             await session.rollback()
-            print(f"❌ Ошибка при заполнении базы: {e}")
+            print(f"❌ Ошибка при обновлении базы: {e}")
             raise
 
+# ИЗМЕНИТЕ вызов в конце файла:
 if __name__ == "__main__":
     asyncio.run(seed_database())
