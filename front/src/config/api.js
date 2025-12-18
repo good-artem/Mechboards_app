@@ -9,9 +9,9 @@ const API_CONFIG = {
     
     // Fallback для разных окружений
     if (import.meta.env.MODE === 'development') {
-      return 'https://literate-happiness-jgjqgwvw67vfrxw-8000.app.github.dev';
+      return 'https://miniature-goggles-9x7jx4r4rq7295g9-8000.app.github.dev';
     } else {
-      return 'https://literate-happiness-jgjqgwvw67vfrxw-8000.app.github.dev';
+      return 'https://miniature-goggles-9x7jx4r4rq7295g9-8000.app.github.dev';
     }
   },
   

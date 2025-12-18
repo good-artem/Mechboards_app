@@ -130,7 +130,7 @@ async def lifespan(app_: FastAPI):
 
 app = FastAPI(title="Mechboards shop", lifespan=lifespan)
 
-app.mount("/assets", StaticFiles(directory="front/src/assets"), name="assets")
+app.mount("/assets", StaticFiles(directory="../front/src/assets"), name="assets")
 
 app.add_middleware(
     CORSMiddleware,
