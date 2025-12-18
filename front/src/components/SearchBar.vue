@@ -67,37 +67,34 @@ export default {
             }
         },
         async performSearch() {
-            if (!this.searchQuery.trim()) {
-                this.searchResults = [];
-                this.showResults = false;
-                this.$emit('search', '');
-                return;
-            }
+    if (!this.searchQuery.trim()) {
+        this.searchResults = [];
+        this.showResults = false;
+        this.$emit('search', '');
+        return;
+    }
 
-            this.searchLoading = true;
-            
-            try {
-                // Вызов API поиска
-                const response = await fetch(`/api/products/search?q=${encodeURIComponent(this.searchQuery)}&limit=5`);
-                
-                if (response.ok) {
-                    const results = await response.json();
-                    this.searchResults = results;
-                    this.showResults = true;
-                } else {
-                    console.error('Ошибка поиска');
-                    this.searchResults = [];
-                }
-                
-                // Эмитим событие для родительского компонента
-                this.$emit('search', this.searchQuery);
-            } catch (error) {
-                console.error('Ошибка поиска:', error);
-                this.searchResults = [];
-            } finally {
-                this.searchLoading = false;
-            }
-        },
+    this.searchLoading = true;
+    
+    try {
+        // ИСПРАВЛЕНО: используем API_CONFIG вместо прямого fetch
+        const { get, endpoints } = useApi();
+        
+        const results = await get(`${endpoints.products.search}?q=${encodeURIComponent(this.searchQuery)}&limit=5`);
+        
+        this.searchResults = results;
+        this.showResults = true;
+        
+        // Эмитим событие для родительского компонента
+        this.$emit('search', this.searchQuery);
+    } catch (error) {
+        console.error('Ошибка поиска:', error);
+        this.searchResults = [];
+        this.showMessage('Ошибка поиска товаров', 'error');
+    } finally {
+        this.searchLoading = false;
+    }
+},
         clearSearch() {
             this.searchQuery = '';
             this.searchResults = [];

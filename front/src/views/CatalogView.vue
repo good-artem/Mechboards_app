@@ -207,12 +207,49 @@
                             <v-icon>mdi-close</v-icon>
                         </v-btn>
                     </v-card-title>
-                    <v-card-text>
-                        <img 
-                            :src="getProductImage(selectedProduct)" 
-                            :alt="selectedProduct.name" 
-                            style="width: 100%; border-radius: 8px;"
+                    
+                    <!-- Галерея изображений -->
+                    <div v-if="productImages.length > 0">
+                        <v-carousel 
+                            v-model="carouselIndex" 
+                            height="300" 
+                            show-arrows 
+                            hide-delimiter-background
+                            class="product-gallery"
                         >
+                            <v-carousel-item
+                                v-for="(image, index) in productImages"
+                                :key="index"
+                                :src="image"
+                                contain
+                            >
+                            </v-carousel-item>
+                        </v-carousel>
+                        
+                        <!-- Миниатюры -->
+                        <div class="thumbnails d-flex justify-center mt-2">
+                            <v-btn
+                                v-for="(image, index) in productImages"
+                                :key="index"
+                                icon
+                                size="small"
+                                @click="carouselIndex = index"
+                                :class="{'active-thumbnail': carouselIndex === index}"
+                                class="mx-1"
+                            >
+                                <v-avatar size="40" rounded="sm">
+                                    <img :src="image" :alt="`Изображение ${index + 1}`" style="object-fit: cover;">
+                                </v-avatar>
+                            </v-btn>
+                        </div>
+                    </div>
+                    
+                    <div v-else class="text-center pa-4">
+                        <v-icon size="100" color="grey-lighten-2">mdi-image-off</v-icon>
+                        <div class="text-body-2 mt-2">Нет изображений</div>
+                    </div>
+                    
+                    <v-card-text>
                         <div class="mt-4">
                             <p><strong>Цена:</strong> {{ formatPrice(selectedProduct.price) }}</p>
                             <p v-if="selectedProduct.description">
@@ -235,6 +272,7 @@
                             @click="addToCart(selectedProduct)"
                             :disabled="selectedProduct.stock_quantity === 0"
                             block
+                            size="large"
                         >
                             <v-icon left>mdi-cart-plus</v-icon>
                             Добавить в корзину
@@ -293,6 +331,7 @@ export default {
             ],
             productDialog: false,
             selectedProduct: null,
+            carouselIndex: 0,
             categories: [],
             products: [],
             loading: false,
@@ -305,8 +344,43 @@ export default {
     },
     async mounted() {
         await this.fetchCategories();
+
+        if (this.$route.query.search) {
+        this.searchQuery = this.$route.query.search;
+        this.handleSearch(this.searchQuery);
+        }
     },
     computed: {
+        productImages() {
+            if (!this.selectedProduct || !this.selectedProduct.images) {
+                return [];
+            }
+            
+            try {
+                let images = this.selectedProduct.images;
+                
+                // Если images это строка JSON
+                if (typeof images === 'string') {
+                    images = JSON.parse(images);
+                }
+                
+                // Если images это массив
+                if (Array.isArray(images)) {
+                    return images.map(img => {
+                        // Если это относительный путь, добавляем базовый URL
+                        if (img.startsWith('/')) {
+                            return `${this.getApiBaseUrl()}${img}`;
+                        }
+                        return img;
+                    });
+                }
+            } catch (e) {
+                console.warn('Cannot parse product images:', e);
+            }
+            
+            return [];
+        
+        },
         filteredProducts() {
             let filtered = [...this.products];
             
@@ -318,6 +392,7 @@ export default {
                     (product.description && product.description.toLowerCase().includes(query))
                 );
             }
+            
             
             // Применяем фильтры
             filtered = this.applyLocalFilters(filtered);
@@ -345,6 +420,15 @@ export default {
         }
     },
     methods: {
+        showMessage(message, type = 'success') {
+            this.snackbarMessage = message;
+            this.snackbarColor = type === 'error' ? 'error' : 'success';
+            this.snackbar = true;
+            
+            setTimeout(() => {
+                this.snackbar = false;
+            }, 3000);
+        },
         formatPrice(price) {
             return new Intl.NumberFormat('ru-RU').format(price) + ' Р'
         },
@@ -527,34 +611,27 @@ export default {
         },
         async addToCart(product) {
             try {
+                const { post, endpoints } = useApi();
                 const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+                
                 if (!tg_user) {
-                    this.showMessage('Ошибка: пользователь не найден');
+                    this.showMessage('Ошибка: пользователь не найден', 'error');
                     return;
                 }
 
-                const response = await fetch('/api/cart/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        telegram_id: tg_user.id,
-                        product_id: product.product_id,
-                        quantity: 1
-                    })
+                await post(endpoints.cart.add, {
+                    telegram_id: tg_user.id,
+                    product_id: product.product_id,
+                    quantity: 1
                 });
-
-                if (response.ok) {
-                    this.showMessage(`Товар "${product.name}" добавлен в корзину`);
-                    this.handleCartUpdate();
-                } else {
-                    const error = await response.json();
-                    this.showMessage(`Ошибка: ${error.detail || 'Не удалось добавить в корзину'}`);
-                }
+                
+                this.showMessage(`Товар "${product.name}" добавлен в корзину`);
+                this.$root.$emit('cart-updated'); // Исправлено
+                this.productDialog = false;
+                
             } catch (error) {
                 console.error('Error adding to cart:', error);
-                this.showMessage('Ошибка соединения');
+                this.showMessage('Ошибка добавления в корзину', 'error');
             }
         },
         // Обработчики для SearchBar

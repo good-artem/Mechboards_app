@@ -177,6 +177,7 @@
 
 <script>
 import '@/assets/styles/components/cart-view.css'
+import '@/assets/styles/components/product-gallery.css'
 import { useApi } from '@/composables/useApi'
 
 export default {

@@ -1,0 +1,32 @@
+.product-gallery {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.thumbnails {
+    overflow-x: auto;
+    padding: 8px 0;
+}
+
+.active-thumbnail {
+    border: 2px solid var(--v-primary-base) !important;
+    border-radius: 4px;
+}
+
+.thumbnails::-webkit-scrollbar {
+    height: 4px;
+}
+
+.thumbnails::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.thumbnails::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 2px;
+}
+
+.thumbnails::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
