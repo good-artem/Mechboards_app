@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News
 from sqlalchemy import select
@@ -129,9 +130,66 @@ async def lifespan(app_: FastAPI):
 
 app = FastAPI(title="Mechboards shop", lifespan=lifespan)
 
+app.mount("/assets", StaticFiles(directory="front/src/assets"), name="assets")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Middleware для проверки авторизации
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
+    # Разрешаем OPTIONS запросы (preflight) без проверки авторизации
+    if request.method == "OPTIONS":
+        response = await call_next(request)
+        return response
+    
+    # Публичные эндпоинты (не требуют авторизации)
+    public_paths = [
+        '/api/categories',
+        '/api/products',
+        '/api/news',
+        '/docs',
+        '/openapi.json',
+        '/api/health',
+        '/api/products/search'
+    ]
+    
+    # Проверяем, публичный ли эндпоинт
+    is_public = any(request.url.path.startswith(path) for path in public_paths)
+    
+    if is_public:
+        return await call_next(request)
+    
+    # Для защищенных эндпоинтов проверяем авторизацию
+    init_data = request.headers.get('x-telegram-init-data')
+    
+    if not init_data:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Требуется авторизация Telegram"}
+        )
+    
+    try:
+        # Проверяем хэш
+        if not verify_telegram_hash(init_data):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Невалидная авторизация"}
+            )
+        
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": f"Ошибка авторизации: {str(e)}"}
+        )
+    
     # Публичные эндпоинты (не требуют авторизации)
     public_paths = [
         '/api/categories',

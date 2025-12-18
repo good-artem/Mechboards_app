@@ -46,9 +46,9 @@ async def seed_database():
                     stock_quantity=15,
                     category_id=categories_data[0].category_id,
                     images=json.dumps([
-                        "Mechboards_app\front\src\assets\images\products\Keychron_k2\Keychron_k2_1.png",
-                        "Mechboards_app\front\src\assets\images\products\Keychron_k2\Keychron_k2_2.png",
-                        "Mechboards_app\front\src\assets\images\products\Keychron_k2\Keychron_k2_3.png"
+                        "/assets/images/products/Keychron_k2/Keychron_k2_1.png",
+                        "/assets/images/products/Keychron_k2/Keychron_k2_2.png",
+                        "/assets/images/products/Keychron_k2/Keychron_k2_3.png"
                     ]),                    
                     is_available=True
                 ),
@@ -59,9 +59,9 @@ async def seed_database():
                     stock_quantity=50,
                     category_id=categories_data[1].category_id,
                     images=json.dumps([
-                        "Mechboards_app\front\src\assets\images\products\Gateron_yellow _switches\Gateron_yellow _switches_1.png",
-                        "Mechboards_app\front\src\assets\images\products\Gateron_yellow _switches\Gateron_yellow _switches_2.png",
-                        "Mechboards_app\front\src\assets\images\products\Gateron_yellow _switches\Gateron_yellow _switches_3.png"
+                        "/assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_1.png",
+                        "/assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_2.png",
+                        "/assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_3.png"
                     ]),                      
                     is_available=True
                 ),
@@ -72,9 +72,9 @@ async def seed_database():
                     stock_quantity=25,
                     category_id=categories_data[2].category_id,
                     images=json.dumps([
-                        "Mechboards_app\front\src\assets\images\products\PBT_keycaps_set\PBT_keycaps_set_1.png",
-                        "Mechboards_app\front\src\assets\images\products\PBT_keycaps_set\PBT_keycaps_set_2.png",
-                        "Mechboards_app\front\src\assets\images\products\PBT_keycaps_set\PBT_keycaps_set_3.png"
+                        "/assets/images/products/PBT_keycaps_set/PBT_keycaps_set_1.png",
+                        "/assets/images/products/PBT_keycaps_set/PBT_keycaps_set_2.png",
+                        "/assets/images/products/PBT_keycaps_set/PBT_keycaps_set_3.png"
                     ]),                      
                     is_available=True
                 ),
@@ -85,8 +85,8 @@ async def seed_database():
                     stock_quantity=30,
                     category_id=categories_data[3].category_id,
                     images=json.dumps([
-                        "Mechboards_app\front\src\assets\images\products\Стабилизаторы_Cherry\Стабилизаторы_Cherry_1.png",
-                        "Mechboards_app\front\src\assets\images\products\Стабилизаторы_Cherry\Стабилизаторы_Cherry_2.png",
+                        "/assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_1.png",
+                        "/assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_2.png",
                     ]),                      
                     is_available=True
                 ),
@@ -97,8 +97,8 @@ async def seed_database():
                     stock_quantity=20,
                     category_id=categories_data[4].category_id,
                     images=json.dumps([
-                        "Mechboards_app\front\src\assets\images\products\Смазка_krytox_205g0\Смазка_krytox_205g0_1.png",
-                        "Mechboards_app\front\src\assets\images\products\Смазка_krytox_205g0\Смазка_krytox_205g0_2.png",
+                        "/assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_1.png",
+                        "/assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_2.png",
                     ]),                      
                     is_available=True
                 ),
