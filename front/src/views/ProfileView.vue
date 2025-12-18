@@ -3,81 +3,116 @@
         <v-row justify="center">
             <v-col cols="12" sm="8" md="6">
                 <!-- Отладочная информация -->
-                <v-alert v-if="debugInfo" type="info" class="mb-4">
+                <v-alert v-if="debugInfo && debugMode" type="info" class="mb-4">
                     <div><strong>Debug Info:</strong></div>
                     <div>Telegram User: {{ debugInfo.telegramUser ? 'Found' : 'Not found' }}</div>
+                    <div>Telegram ID: {{ debugInfo.telegramId }}</div>
                     <div>API Base URL: {{ debugInfo.apiBaseUrl }}</div>
                     <div>Loading: {{ loading }}</div>
-                    <div>User Data: {{ user }}</div>
+                    <div>Error: {{ error }}</div>
                 </v-alert>
 
                 <v-card class="profile-card" elevation="2">
-                    <v-card-title class="profile-title">
-                        <v-avatar color="primary" size="64" class="profile-avatar">
-                            <v-icon v-if="!user.photo_url" color="white">mdi-account</v-icon>
+                    <v-card-title class="profile-title d-flex align-center">
+                        <v-avatar color="primary" size="56" class="profile-avatar mr-4">
+                            <v-icon v-if="!user.photo_url" color="white" size="32">mdi-account</v-icon>
                             <img v-else :src="user.photo_url" alt="User Avatar" class="avatar-image">
                         </v-avatar>
-                        Профиль
+                        <div>
+                            <div class="text-h5 font-weight-bold">{{ user.name || 'Пользователь' }}</div>
+                            <div class="text-body-1 text-grey">{{ user.username || 'Без username' }}</div>
+                        </div>
                     </v-card-title>
+                    
+                    <v-divider class="my-3"></v-divider>
                     
                     <v-card-text class="profile-content">
                         <div v-if="loading" class="text-center pa-4">
-                            <v-progress-circular indeterminate color="primary"></v-progress-circular>
-                            <div class="mt-2">Загрузка профиля...</div>
+                            <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
+                            <div class="mt-3 text-body-1">Загрузка профиля...</div>
+                        </div>
+                        
+                        <div v-else-if="error" class="text-center pa-4">
+                            <v-icon color="error" size="48" class="mb-3">mdi-alert-circle</v-icon>
+                            <div class="text-h6 mb-2">Ошибка загрузки</div>
+                            <div class="text-body-1 mb-4">{{ error }}</div>
+                            <v-btn @click="initializeProfile" color="primary">Повторить попытку</v-btn>
                         </div>
                         
                         <v-list v-else class="profile-list">
                             <v-list-item class="profile-list-item">
                                 <template v-slot:prepend>
-                                    <v-icon color="primary">mdi-identifier</v-icon>
+                                    <v-icon color="primary" class="mr-2">mdi-identifier</v-icon>
                                 </template>
-                                <v-list-item-title>Telegram ID</v-list-item-title>
-                                <v-list-item-subtitle>{{ user.telegram_id || 'Не указан' }}</v-list-item-subtitle>
+                                <v-list-item-title class="font-weight-medium">Telegram ID</v-list-item-title>
+                                <v-list-item-subtitle class="text-right">{{ user.telegram_id || 'Не указан' }}</v-list-item-subtitle>
                             </v-list-item>
 
                             <v-divider class="profile-divider"></v-divider>
 
                             <v-list-item class="profile-list-item">
                                 <template v-slot:prepend>
-                                    <v-icon color="primary">mdi-account</v-icon>
+                                    <v-icon color="primary" class="mr-2">mdi-account</v-icon>
                                 </template>
-                                <v-list-item-title>Имя</v-list-item-title>
-                                <v-list-item-subtitle>{{ user.name || 'Не указано' }}</v-list-item-subtitle>
+                                <v-list-item-title class="font-weight-medium">Имя</v-list-item-title>
+                                <v-list-item-subtitle class="text-right">{{ user.name || 'Не указано' }}</v-list-item-subtitle>
                             </v-list-item>
 
                             <v-divider class="profile-divider"></v-divider>
 
                             <v-list-item class="profile-list-item">
                                 <template v-slot:prepend>
-                                    <v-icon color="primary">mdi-account-box</v-icon>
+                                    <v-icon color="primary" class="mr-2">mdi-account-box</v-icon>
                                 </template>
-                                <v-list-item-title>Username</v-list-item-title>
-                                <v-list-item-subtitle>{{ user.username || 'Не указан' }}</v-list-item-subtitle>
+                                <v-list-item-title class="font-weight-medium">Username</v-list-item-title>
+                                <v-list-item-subtitle class="text-right">{{ user.username || 'Не указан' }}</v-list-item-subtitle>
                             </v-list-item>
 
                             <v-divider class="profile-divider"></v-divider>
 
                             <v-list-item class="profile-list-item">
                                 <template v-slot:prepend>
-                                    <v-icon color="primary">mdi-calendar</v-icon>
+                                    <v-icon color="primary" class="mr-2">mdi-calendar</v-icon>
                                 </template>
-                                <v-list-item-title>Дата регистрации</v-list-item-title>
-                                <v-list-item-subtitle>{{ formatDate(user.created_at) }}</v-list-item-subtitle>
+                                <v-list-item-title class="font-weight-medium">Дата регистрации</v-list-item-title>
+                                <v-list-item-subtitle class="text-right">{{ formatDate(user.created_at) }}</v-list-item-subtitle>
+                            </v-list-item>
+
+                            <v-divider class="profile-divider"></v-divider>
+
+                            <v-list-item class="profile-list-item">
+                                <template v-slot:prepend>
+                                    <v-icon color="primary" class="mr-2">mdi-shopping</v-icon>
+                                </template>
+                                <v-list-item-title class="font-weight-medium">Всего заказов</v-list-item-title>
+                                <v-list-item-subtitle class="text-right">{{ ordersCount }}</v-list-item-subtitle>
+                            </v-list-item>
+
+                            <v-divider class="profile-divider"></v-divider>
+
+                            <v-list-item class="profile-list-item">
+                                <template v-slot:prepend>
+                                    <v-icon color="primary" class="mr-2">mdi-check-circle</v-icon>
+                                </template>
+                                <v-list-item-title class="font-weight-medium">Выполненные заказы</v-list-item-title>
+                                <v-list-item-subtitle class="text-right">{{ completedOrdersCount }}</v-list-item-subtitle>
                             </v-list-item>
                         </v-list>
                     </v-card-text>
+                    
+                    <v-card-actions class="profile-actions pa-4">
+                        <v-btn @click="testConnection" color="primary" variant="outlined" :loading="testing" block>
+                            <v-icon left>mdi-connection</v-icon>
+                            Проверить подключение
+                        </v-btn>
+                    </v-card-actions>
                 </v-card>
 
-                <!-- Кнопка для тестирования -->
-                <v-card class="test-card mt-4 pa-4 text-center">
-                    <v-btn @click="testConnection" color="primary" :loading="testing">
-                        Тест подключения к API
-                    </v-btn>
-                    <div v-if="testResult" class="mt-2">
-                        <v-alert :type="testResult.type" dense>
-                            {{ testResult.message }}
-                        </v-alert>
-                    </div>
+                <!-- Результат тестирования -->
+                <v-card v-if="testResult" class="test-result-card mt-4 pa-4">
+                    <v-alert :type="testResult.type" :icon="testResult.icon" variant="tonal">
+                        {{ testResult.message }}
+                    </v-alert>
                 </v-card>
             </v-col>
         </v-row>
@@ -147,55 +182,45 @@ export default {
 
         async fetchUserProfile() {
             this.loading = true;
-            console.log('🔄 Fetching user profile...');
+            console.log('🔄 Загрузка профиля...');
             
             try {
                 const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
-                if (!tg_user) {
-                    console.error('❌ Telegram user not found');
-                    this.loading = false;
-                    return;
-                }
+                const telegram_id = tg_user?.id || 391622124;
+                
+                console.log('🔍 Telegram ID:', telegram_id);
 
-                console.log('🔍 Telegram user ID:', tg_user.id);
-
-                const userUrl = API_CONFIG.getUrl(API_CONFIG.endpoints.users.profile(tg_user.id));
+                // Используем новый публичный эндпоинт
+                const userUrl = `${this.getApiBaseUrl()}/api/user/${telegram_id}`;
                 console.log('🔍 API URL:', userUrl);
 
                 const response = await fetch(userUrl);
-                console.log('🔍 Response status:', response.status);
+                console.log('🔍 Статус ответа:', response.status);
 
                 if (response.ok) {
                     const userData = await response.json();
-                    console.log('✅ User profile loaded:', userData);
+                    console.log('✅ Профиль загружен:', userData);
                     this.user = { ...this.user, ...userData };
-                } else if (response.status === 404) {
-                    console.log('👤 User not found, creating new user...');
-                    await this.createUser(tg_user);
                 } else {
-                    console.error('❌ Error loading profile:', response.status);
-                    // Fallback данные для тестирования
+                    console.error('❌ Ошибка загрузки профиля:', response.status);
+                    // Fallback данные
                     this.user = {
-                        telegram_id: tg_user.id,
-                        name: tg_user.first_name || 'Telegram User',
-                        username: tg_user.username ? `@${tg_user.username}` : null,
+                        telegram_id: telegram_id,
+                        name: tg_user?.first_name || 'Telegram User',
+                        username: tg_user?.username ? `@${tg_user.username}` : null,
                         created_at: new Date().toISOString()
                     };
                 }
             } catch (error) {
-                console.error('❌ Network error:', error);
-                // Fallback данные при ошибке сети
-                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
-                if (tg_user) {
-                    this.user = {
-                        telegram_id: tg_user.id,
-                        name: tg_user.first_name || 'Telegram User',
-                        username: tg_user.username ? `@${tg_user.username}` : null,
-                        created_at: new Date().toISOString()
-                    };
-                }
+                console.error('❌ Ошибка сети:', error);
             }
             this.loading = false;
+        },
+        
+        getApiBaseUrl() {
+            return window.location.hostname === 'localhost' 
+                ? 'http://localhost:8000' 
+                : 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
         },
 
         async createUser(tgUser) {

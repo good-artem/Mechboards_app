@@ -7,8 +7,8 @@
             <!-- SearchBar с обработкой событий -->
             <SearchBar 
                 @search="handleSearch"
+                @search-results="handleSearchResults"
                 @clear-search="handleClearSearch"
-                @product-selected="handleProductSelected"
             />
 
             <!-- Панель фильтров и сортировки (только при просмотре товаров) -->
@@ -226,22 +226,6 @@
                             </v-carousel-item>
                         </v-carousel>
                         
-                        <!-- Миниатюры -->
-                        <div class="thumbnails d-flex justify-center mt-2">
-                            <v-btn
-                                v-for="(image, index) in productImages"
-                                :key="index"
-                                icon
-                                size="small"
-                                @click="carouselIndex = index"
-                                :class="{'active-thumbnail': carouselIndex === index}"
-                                class="mx-1"
-                            >
-                                <v-avatar size="40" rounded="sm">
-                                    <img :src="image" :alt="`Изображение ${index + 1}`" style="object-fit: cover;">
-                                </v-avatar>
-                            </v-btn>
-                        </div>
                     </div>
                     
                     <div v-else class="text-center pa-4">
@@ -367,11 +351,29 @@ export default {
                 // Если images это массив
                 if (Array.isArray(images)) {
                     return images.map(img => {
-                        // Если это относительный путь, добавляем базовый URL
-                        if (img.startsWith('/')) {
-                            return `${this.getApiBaseUrl()}${img}`;
+                        let imagePath = img;
+                        
+                        // Убираем возможные обратные слеши
+                        imagePath = imagePath.replace(/\\/g, '/');
+                        
+                        // Если путь уже полный URL
+                        if (imagePath.startsWith('http')) {
+                            return imagePath;
                         }
-                        return img;
+                        
+                        // Если путь относительный
+                        if (imagePath.startsWith('assets/') || imagePath.startsWith('/assets/')) {
+                            // Убираем начальный слеш если есть
+                            if (imagePath.startsWith('/')) {
+                                imagePath = imagePath.substring(1);
+                            }
+                            // Базовый URL для разработки
+                            const baseUrl = this.getApiBaseUrl();
+                            return `${baseUrl}/${imagePath}`;
+                        }
+                        
+                        // Любой другой относительный путь
+                        return `${this.getApiBaseUrl()}/${imagePath}`;
                     });
                 }
             } catch (e) {
@@ -420,6 +422,19 @@ export default {
         }
     },
     methods: {
+        getApiBaseUrl() {
+            // Проверяем переменные окружения
+            if (import.meta.env.VITE_API_BASE_URL) {
+                return import.meta.env.VITE_API_BASE_URL;
+            }
+            
+            // Определяем среду
+            if (import.meta.env.MODE === 'development') {
+                return 'http://localhost:8000';
+            } else {
+                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+            }
+        },
         showMessage(message, type = 'success') {
             this.snackbarMessage = message;
             this.snackbarColor = type === 'error' ? 'error' : 'success';
@@ -464,33 +479,35 @@ export default {
         },
 
         async fetchProducts(categoryId = null) {
-            const { get, endpoints } = useApi()
+            const baseUrl = this.getApiBaseUrl();
+            let url = `${baseUrl}/api/products`;
+            
+            if (categoryId) {
+                url += `?category_id=${categoryId}`;
+            }
             
             this.loading = true;
             try {
-                let url = endpoints.products.list
-                const params = new URLSearchParams()
+                const response = await fetch(url);
                 
-                if (categoryId) {
-                    params.append('category_id', categoryId)
+                if (response.ok) {
+                    const products = await response.json();
+                    this.products = products;
+                    this.allProducts = [...products];
+                    console.log('📦 Загружены товары:', products);
+                    
+                    if (products.length === 0) {
+                        this.showMessage('Товаров в этой категории пока нет', 'info');
+                    }
+                } else {
+                    console.error('❌ Ошибка загрузки товаров:', response.status);
+                    this.products = this.getFallbackProducts();
+                    this.allProducts = [...this.products];
                 }
-                
-                if (this.searchQuery) {
-                    params.append('q', this.searchQuery)
-                }
-                
-                if (params.toString()) {
-                    url += `?${params.toString()}`
-                }
-                
-                const products = await get(url)
-                this.products = products
-                this.allProducts = [...products]
-                console.log('📦 Загружены товары:', products)
             } catch (error) {
-                console.error('❌ Ошибка загрузки товаров:', error)
-                this.products = this.getFallbackProducts()
-                this.allProducts = [...this.products]
+                console.error('❌ Ошибка сети:', error);
+                this.products = this.getFallbackProducts();
+                this.allProducts = [...this.products];
             }
             this.loading = false;
         },
@@ -509,14 +526,17 @@ export default {
             ];
         },
         async onCategorySelected(category) {
+            console.log('Selected category:', category.name);
+            this.selectedCategory = category;
+            this.searchQuery = '';
+            
             if (category.category_id === 1) { // "Весь каталог"
-                this.selectedCategory = category;
                 await this.fetchProducts();
-                this.showProducts = true;
             } else {
-                console.log('Selected category:', category.name);
-                this.showMessage(`Категория "${category.name}" скоро будет доступна`);
+                await this.fetchProducts(category.category_id);
             }
+            
+            this.showProducts = true;
         },
         getFallbackProducts() {
             return [
@@ -634,12 +654,57 @@ export default {
                 this.showMessage('Ошибка добавления в корзину', 'error');
             }
         },
-        // Обработчики для SearchBar
         handleSearch(searchQuery) {
             this.searchQuery = searchQuery;
-            if (this.showProducts) {
-                this.fetchProducts(this.selectedCategory?.category_id);
+            if (searchQuery.trim()) {
+                this.fetchProductsForSearch(searchQuery);
+            } else if (this.selectedCategory?.category_id) {
+                this.fetchProducts(this.selectedCategory.category_id);
+            } else {
+                this.products = [];
+                this.showProducts = false;
+                this.selectedCategory = null;
             }
+        },
+        
+        handleSearchResults(results) {
+            console.log('📦 Получены результаты поиска:', results);
+            this.products = results;
+            this.allProducts = [...results];
+            this.showProducts = true;
+            this.selectedCategory = { name: `Поиск: "${this.searchQuery}"` };
+        },
+        
+        async fetchProductsForSearch(searchQuery) {
+            this.loading = true;
+            try {
+                const baseUrl = this.getApiBaseUrl();
+                const apiUrl = `${baseUrl}/api/products/search?q=${encodeURIComponent(searchQuery)}`;
+                
+                const response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    const products = await response.json();
+                    this.products = products;
+                    this.allProducts = [...products];
+                    
+                    // Показываем товары
+                    this.showProducts = true;
+                    this.selectedCategory = { 
+                        name: `Результаты поиска: "${searchQuery}"`,
+                        category_id: null 
+                    };
+                } else {
+                    console.error('❌ Ошибка поиска товаров:', response.status);
+                    this.products = [];
+                    this.showMessage('Товары не найдены', 'warning');
+                }
+            } catch (error) {
+                console.error('❌ Ошибка сети:', error);
+                this.products = [];
+                this.showMessage('Ошибка подключения к серверу', 'error');
+            }
+            this.loading = false;
         },
         handleClearSearch() {
             this.searchQuery = '';

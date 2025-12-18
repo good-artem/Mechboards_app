@@ -121,3 +121,82 @@
     color: var(--tg-theme-text-color, #000000) !important;
     border-radius: 12px;
 }
+
+.profile-container {
+    padding: 16px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.profile-card {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.profile-title {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px;
+}
+
+.profile-avatar {
+    border: 3px solid white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-image {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+.profile-content {
+    padding: 0 !important;
+}
+
+.profile-list {
+    padding: 8px 0;
+}
+
+.profile-list-item {
+    padding: 12px 20px !important;
+    min-height: 56px !important;
+}
+
+.profile-list-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.profile-divider {
+    margin: 0 20px !important;
+}
+
+.profile-actions {
+    border-top: 1px solid #e0e0e0;
+}
+
+.test-result-card {
+    border-radius: 12px;
+    border-left: 4px solid;
+}
+
+.test-result-card.success {
+    border-left-color: #4CAF50;
+}
+
+.test-result-card.error {
+    border-left-color: #f44336;
+}
+
+/* Стили для текста */
+.text-grey {
+    color: #757575;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

@@ -113,3 +113,109 @@
 .confirm-order-btn {
     min-width: 140px;
 }
+
+.cart-container {
+    max-width: 100%;
+    padding: 12px;
+}
+
+.cart-card {
+    border-radius: 12px;
+}
+
+.cart-title {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.cart-item {
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.2s;
+}
+
+.cart-item:hover {
+    background-color: #f9f9f9;
+}
+
+.cart-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.cart-item-title {
+    font-size: 0.95rem;
+    line-height: 1.3;
+}
+
+.cart-item-description {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    max-height: 2.8em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.cart-item-subtitle {
+    font-size: 0.85rem;
+}
+
+.quantity-controls {
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    padding: 2px;
+    background: white;
+}
+
+.quantity-btn {
+    min-width: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+}
+
+.remove-btn {
+    min-width: 28px !important;
+    width: 28px !important;
+    height: 28px !important;
+}
+
+.quantity-display {
+    min-width: 24px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.summary-card {
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.total-price {
+    font-size: 2rem;
+}
+
+.checkout-btn {
+    height: 48px;
+    font-size: 1.1rem;
+    border-radius: 25px;
+}
+
+.checkout-text {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.order-dialog-title {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

@@ -17,16 +17,31 @@
             </v-text-field>
         </v-card>
         
-        <!-- Результаты поиска (опционально) -->
-        <v-card v-if="showResults && searchResults.length > 0" class="search-results" elevation="4">
+        <!-- Всплывающие результаты поиска -->
+        <v-card 
+            v-if="showResults && searchResults.length > 0" 
+            class="search-results-dropdown" 
+            elevation="4"
+        >
             <v-list density="compact">
                 <v-list-item
                     v-for="result in searchResults"
                     :key="result.product_id"
                     @click="selectProduct(result)"
+                    class="search-result-item"
                 >
                     <v-list-item-title>{{ result.name }}</v-list-item-title>
                     <v-list-item-subtitle>{{ formatPrice(result.price) }}</v-list-item-subtitle>
+                </v-list-item>
+                <v-list-item 
+                    v-if="searchResults.length > 0" 
+                    @click="showAllResults"
+                    class="search-show-all"
+                >
+                    <v-list-item-title class="text-center">
+                        <v-icon small>mdi-arrow-right</v-icon>
+                        Показать все результаты ({{ searchResults.length }})
+                    </v-list-item-title>
                 </v-list-item>
             </v-list>
         </v-card>
@@ -34,9 +49,6 @@
 </template>
 
 <script>
-
-import '@/assets/styles/components/search-bar.css'
-
 export default {
     name: "SearchBar",
     data() {
@@ -53,48 +65,54 @@ export default {
             return new Intl.NumberFormat('ru-RU').format(price) + ' ₽'
         },
         handleInput() {
-            // Дебаунс для избежания частых запросов
             clearTimeout(this.searchTimeout);
             
-            if (this.searchQuery.trim().length > 2) {
+            if (this.searchQuery.trim().length > 1) {
                 this.searchTimeout = setTimeout(() => {
                     this.performSearch();
-                }, 500);
+                }, 300);
                 this.showResults = true;
             } else {
                 this.searchResults = [];
                 this.showResults = false;
+                this.$emit('clear-search');
             }
         },
         async performSearch() {
-    if (!this.searchQuery.trim()) {
-        this.searchResults = [];
-        this.showResults = false;
-        this.$emit('search', '');
-        return;
-    }
+            if (!this.searchQuery.trim()) {
+                this.searchResults = [];
+                this.showResults = false;
+                this.$emit('search', '');
+                return;
+            }
 
-    this.searchLoading = true;
-    
-    try {
-        // ИСПРАВЛЕНО: используем API_CONFIG вместо прямого fetch
-        const { get, endpoints } = useApi();
-        
-        const results = await get(`${endpoints.products.search}?q=${encodeURIComponent(this.searchQuery)}&limit=5`);
-        
-        this.searchResults = results;
-        this.showResults = true;
-        
-        // Эмитим событие для родительского компонента
-        this.$emit('search', this.searchQuery);
-    } catch (error) {
-        console.error('Ошибка поиска:', error);
-        this.searchResults = [];
-        this.showMessage('Ошибка поиска товаров', 'error');
-    } finally {
-        this.searchLoading = false;
-    }
-},
+            this.searchLoading = true;
+            
+            try {
+                // Используем эндпоинт поиска
+                const baseUrl = this.getApiBaseUrl();
+                const apiUrl = `${baseUrl}/api/products/search?q=${encodeURIComponent(this.searchQuery)}&limit=5`;
+                
+                const response = await fetch(apiUrl);
+                
+                if (response.ok) {
+                    const results = await response.json();
+                    this.searchResults = results;
+                    this.showResults = true;
+                    
+                    // Эмитим событие для родительского компонента
+                    this.$emit('search', this.searchQuery);
+                } else {
+                    console.error('Ошибка поиска:', response.status);
+                    this.searchResults = [];
+                }
+            } catch (error) {
+                console.error('Ошибка поиска:', error);
+                this.searchResults = [];
+            } finally {
+                this.searchLoading = false;
+            }
+        },
         clearSearch() {
             this.searchQuery = '';
             this.searchResults = [];
@@ -106,20 +124,37 @@ export default {
             this.searchQuery = product.name;
             this.showResults = false;
         },
-        hideResults() {
-            // Скрываем результаты при клике вне компонента
-            setTimeout(() => {
-                this.showResults = false;
-            }, 200);
+        showAllResults() {
+            this.$emit('show-all-results', {
+                query: this.searchQuery,
+                results: this.searchResults
+            });
+            this.showResults = false;
+        },
+        getApiBaseUrl() {
+            // Используем URL из переменных окружения или определяем автоматически
+            if (import.meta.env.VITE_API_BASE_URL) {
+                return import.meta.env.VITE_API_BASE_URL;
+            }
+            
+            // Определяем среду
+            const hostname = window.location.hostname;
+            if (hostname.includes('github.dev')) {
+                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+            } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:8000';
+            } else {
+                return window.location.origin;
+            }
         }
     },
     mounted() {
         // Закрываем результаты при клике вне компонента
-        document.addEventListener('click', this.hideResults);
-    },
-    beforeUnmount() {
-        document.removeEventListener('click', this.hideResults);
+        document.addEventListener('click', (e) => {
+            if (!this.$el.contains(e.target)) {
+                this.showResults = false;
+            }
+        });
     }
 }
 </script>
-
