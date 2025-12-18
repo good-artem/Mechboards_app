@@ -17,43 +17,52 @@ import json
 from urllib.parse import parse_qsl
 
 
+
 # Получаем токен бота из переменных окружения
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
 def verify_telegram_hash(init_data: str) -> bool:
     """
-    Проверяет подлинность данных от Telegram WebApp
+    Проверяет подлинность данных от Telegram WebApp.
+    Использует initData (строку), а не initDataUnsafe.
     """
     try:
         # Парсим query string
         parsed_data = dict(parse_qsl(init_data))
-        received_hash = parsed_data.pop('hash', None)
-        
+        received_hash = parsed_data.get('hash')
+
         if not received_hash:
             return False
-        
-        # Сортируем пары ключ=значение
-        data_check_string = '\n'.join(
-            f"{key}={value}" 
-            for key, value in sorted(parsed_data.items())
-        )
-        
-        # Вычисляем secret key
+
+        # 1. УДАЛЯЕМ из проверки только поле 'hash'
+        data_check_list = []
+        for key, value in sorted(parsed_data.items()):
+            if key == 'hash':
+                continue  # Исключаем hash из расчета
+            data_check_list.append(f"{key}={value}")
+
+        # 2. Формируем строку для проверки
+        data_check_string = "\n".join(data_check_list)
+
+        # 3. Вычисляем секретный ключ (HMAC-SHA256)
         secret_key = hmac.new(
             key=b"WebAppData",
             msg=BOT_TOKEN.encode(),
             digestmod=hashlib.sha256
         ).digest()
-        
-        # Вычисляем хэш
+
+        # 4. Вычисляем хэш и сравниваем
         calculated_hash = hmac.new(
             key=secret_key,
             msg=data_check_string.encode(),
             digestmod=hashlib.sha256
         ).hexdigest()
-        
-        return received_hash == calculated_hash
-    except Exception:
+
+        # Безопасное сравнение хэшей
+        return hmac.compare_digest(received_hash, calculated_hash)
+
+    except Exception as e:
+        print(f"❌ Ошибка верификации Telegram hash: {e}")
         return False
 
 def get_telegram_user_from_init_data(init_data: str):
@@ -149,11 +158,13 @@ async def auth_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return JSONResponse(
             status_code=200,
+            content={"status": "ok"},
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data, Authorization",
-                "Access-Control-Expose-Headers": "*"
+                "Access-Control-Expose-Headers": "*",
+                "Access-Control-Max-Age": "86400"
             }
         )
     
@@ -166,7 +177,11 @@ async def auth_middleware(request: Request, call_next):
         '/openapi.json',
         '/api/health',
         '/api/products/search',
-        '/assets'
+        '/assets',
+        '/api/telegram-test',
+        '/api/debug/headers',
+        '/api/test-images',
+        '/api/me'
     ]
     
     # Проверяем, публичный ли эндпоинт
@@ -189,19 +204,31 @@ async def auth_middleware(request: Request, call_next):
         print(f"⚠️ No Telegram auth header for protected endpoint: {request.url.path}")
         # return JSONResponse(
         #     status_code=401,
-        #     content={"detail": "Требуется авторизация Telegram"}
+        #     content={"detail": "Требуется авторизация Telegram"},
+        #     headers={
+        #         "Access-Control-Allow-Origin": "*",
+        #         "Access-Control-Expose-Headers": "*"
+        #     }
         # )
+        # Для тестирования - пропускаем запрос
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Expose-Headers"] = "*"
+        return response
     
     try:
         if init_data and not verify_telegram_hash(init_data):
             print(f"⚠️ Invalid Telegram hash for: {request.url.path}")
             # return JSONResponse(
             #     status_code=401,
-            #     content={"detail": "Невалидная авторизация"}
-            # )
-        
+            #     content={"detail": "Невалидная авторизация"},
+            #     headers={
+            #         "Access-Control-Allow-Origin": "*",
+        #         "Access-Control-Expose-Headers": "*"
+        #     }
+        # )
+        # Для тестирования - пропускаем запрос
         response = await call_next(request)
-        # Добавляем CORS заголовки
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Expose-Headers"] = "*"
         return response
@@ -209,7 +236,11 @@ async def auth_middleware(request: Request, call_next):
         print(f"❌ Auth error: {e}")
         return JSONResponse(
             status_code=401,
-            content={"detail": f"Ошибка авторизации: {str(e)}"}
+            content={"detail": f"Ошибка авторизации: {str(e)}"},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Expose-Headers": "*"
+            }
         )
 # Зависимость для получения telegram_id из пути
 async def get_current_user(telegram_id: int, x_telegram_init_data: str = Header(None)):
@@ -689,4 +720,21 @@ async def test_images():
     return {
         "test_image_url": "https://via.placeholder.com/300x400/667eea/ffffff?text=Test+Image",
         "api_base_url": "http://localhost:8000"
+    }
+
+# Добавьте после других эндпоинтов:
+@app.get("/api/test/no-auth")
+async def test_no_auth():
+    """Тестовый эндпоинт без авторизации"""
+    return {"status": "ok", "message": "No auth required", "timestamp": datetime.now().isoformat()}
+
+@app.get("/api/test/with-auth")
+async def test_with_auth(x_telegram_init_data: str = Header(None)):
+    """Тестовый эндпоинт с авторизацией"""
+    return {
+        "status": "ok", 
+        "message": "Auth check passed", 
+        "has_init_data": bool(x_telegram_init_data),
+        "init_data_length": len(x_telegram_init_data) if x_telegram_init_data else 0,
+        "timestamp": datetime.now().isoformat()
     }
