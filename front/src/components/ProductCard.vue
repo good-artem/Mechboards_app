@@ -56,35 +56,66 @@ export default {
             }).format(price) + ' р.';
         },
         
-        getProductImage(product) {
+getProductImage(product) {
+            console.log('🖼️ Getting image for product:', product.name, product.images);
+            
             if (product.images) {
                 try {
                     let images = product.images;
                     
+                    // Если images это строка JSON
                     if (typeof images === 'string') {
-                        images = JSON.parse(images);
-                    }
-                    
-                    if (Array.isArray(images) && images.length > 0) {
-                        let imagePath = images[0];
-                        
-                        // Если путь относительный, добавляем базовый URL
-                        if (imagePath.startsWith('/assets')) {
-                            // Для разработки
-                            if (import.meta.env.MODE === 'development') {
-                                return `http://localhost:8000${imagePath}`;
+                        try {
+                            images = JSON.parse(images);
+                        } catch (parseError) {
+                            console.warn('❌ Cannot parse images JSON:', parseError);
+                            // Возможно, это уже массив или неправильный формат
+                            if (Array.isArray(product.images)) {
+                                images = product.images;
                             } else {
-                                // Для продакшена, укажите ваш домен
-                                return `${window.location.origin}${imagePath}`;
+                                images = [];
                             }
                         }
-                        return imagePath;
+                    }
+                    
+                    // Если images это массив
+                    if (Array.isArray(images) && images.length > 0) {
+                        let imagePath = images[0];
+                        console.log('🖼️ Found image path:', imagePath);
+                        
+                        // Если путь относительный, преобразуем его
+                        if (imagePath && typeof imagePath === 'string') {
+                            // Удаляем обратные слеши из пути
+                            imagePath = imagePath.replace(/\\/g, '/');
+                            
+                            // Если путь начинается с /assets, делаем его абсолютным
+                            if (imagePath.startsWith('/assets')) {
+                                const baseUrl = this.getApiBaseUrl();
+                                const fullUrl = `${baseUrl}${imagePath}`;
+                                console.log('🖼️ Full image URL:', fullUrl);
+                                return fullUrl;
+                            }
+                            
+                            // Если это относительный путь без /assets
+                            if (imagePath.startsWith('assets/') || imagePath.startsWith('./assets/')) {
+                                const baseUrl = this.getApiBaseUrl();
+                                const fullUrl = `${baseUrl}/${imagePath.replace(/^\.?\//, '')}`;
+                                console.log('🖼️ Full image URL (relative):', fullUrl);
+                                return fullUrl;
+                            }
+                            
+                            return imagePath;
+                        }
                     }
                 } catch (e) {
-                    console.warn('Cannot parse product images:', e);
+                    console.warn('❌ Cannot parse product images:', e);
                 }
             }
-            return 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Image';
+            
+            // Fallback изображение
+            const fallback = 'https://via.placeholder.com/300x400/667eea/ffffff?text=' + encodeURIComponent(product.name);
+            console.log('🖼️ Using fallback image:', fallback);
+            return fallback;
         },
         
         openProduct() {
