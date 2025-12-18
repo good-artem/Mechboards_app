@@ -56,68 +56,68 @@ export default {
             }).format(price) + ' р.';
         },
         
-getProductImage(product) {
-            console.log('🖼️ Getting image for product:', product.name, product.images);
+        getProductImage(product) {
+        console.log('🖼️ Product images data:', product.images);
+        
+        if (!product.images) {
+            return this.getFallbackImage(product.name);
+        }
+        
+        try {
+            let images = product.images;
             
-            if (product.images) {
-                try {
-                    let images = product.images;
-                    
-                    // Если images это строка JSON
-                    if (typeof images === 'string') {
-                        try {
-                            images = JSON.parse(images);
-                        } catch (parseError) {
-                            console.warn('❌ Cannot parse images JSON:', parseError);
-                            // Возможно, это уже массив или неправильный формат
-                            if (Array.isArray(product.images)) {
-                                images = product.images;
-                            } else {
-                                images = [];
-                            }
-                        }
-                    }
-                    
-                    // Если images это массив
-                    if (Array.isArray(images) && images.length > 0) {
-                        let imagePath = images[0];
-                        console.log('🖼️ Found image path:', imagePath);
-                        
-                        // Если путь относительный, преобразуем его
-                        if (imagePath && typeof imagePath === 'string') {
-                            // Удаляем обратные слеши из пути
-                            imagePath = imagePath.replace(/\\/g, '/');
-                            
-                            // Если путь начинается с /assets, делаем его абсолютным
-                            if (imagePath.startsWith('/assets')) {
-                                const baseUrl = this.getApiBaseUrl();
-                                const fullUrl = `${baseUrl}${imagePath}`;
-                                console.log('🖼️ Full image URL:', fullUrl);
-                                return fullUrl;
-                            }
-                            
-                            // Если это относительный путь без /assets
-                            if (imagePath.startsWith('assets/') || imagePath.startsWith('./assets/')) {
-                                const baseUrl = this.getApiBaseUrl();
-                                const fullUrl = `${baseUrl}/${imagePath.replace(/^\.?\//, '')}`;
-                                console.log('🖼️ Full image URL (relative):', fullUrl);
-                                return fullUrl;
-                            }
-                            
-                            return imagePath;
-                        }
-                    }
-                } catch (e) {
-                    console.warn('❌ Cannot parse product images:', e);
+            // Если это строка JSON
+            if (typeof images === 'string') {
+            try {
+                images = JSON.parse(images);
+            } catch (e) {
+                console.warn('❌ Cannot parse images JSON, using as is:', e);
+                // Попробуем как обычную строку
+                if (images.startsWith('[') && images.endsWith(']')) {
+                images = images.slice(1, -1).split(',').map(img => img.trim().replace(/['"]/g, ''));
+                } else {
+                images = [images];
                 }
             }
+            }
             
-            // Fallback изображение
-            const fallback = 'https://via.placeholder.com/300x400/667eea/ffffff?text=' + encodeURIComponent(product.name);
-            console.log('🖼️ Using fallback image:', fallback);
-            return fallback;
+            // Если массив и есть элементы
+            if (Array.isArray(images) && images.length > 0) {
+            let imagePath = images[0];
+            
+            // Убираем возможные обратные слеши
+            imagePath = imagePath.replace(/\\/g, '/');
+            
+            // Если путь уже полный URL
+            if (imagePath.startsWith('http')) {
+                return imagePath;
+            }
+            
+            // Если путь относительный
+            if (imagePath.startsWith('assets/') || imagePath.startsWith('/assets/')) {
+                // Убираем начальный слеш если есть
+                if (imagePath.startsWith('/')) {
+                imagePath = imagePath.substring(1);
+                }
+                // Базовый URL для разработки
+                const baseUrl = 'http://localhost:8000';
+                return `${baseUrl}/${imagePath}`;
+            }
+            
+            // Любой другой путь
+            return `http://localhost:8000/${imagePath}`;
+            }
+        } catch (e) {
+            console.error('❌ Error processing image:', e);
+        }
+        
+        return this.getFallbackImage(product.name);
         },
         
+        getFallbackImage(productName) {
+        const encodedName = encodeURIComponent(productName);
+        return `https://via.placeholder.com/300x400/667eea/ffffff?text=${encodedName}`;
+        },
         openProduct() {
             this.$emit('product-click', this.product)
         },
