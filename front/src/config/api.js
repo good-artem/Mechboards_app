@@ -9,9 +9,9 @@ const API_CONFIG = {
     
     // Fallback для разных окружений
     if (import.meta.env.MODE === 'development') {
-      return 'https://miniature-goggles-9x7jx4r4rq7295g9-8000.app.github.dev';
+      return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
     } else {
-      return 'https://miniature-goggles-9x7jx4r4rq7295g9-8000.app.github.dev';
+      return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
     }
   },
   

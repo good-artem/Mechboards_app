@@ -197,7 +197,7 @@ getProductImage(product) {
             if (import.meta.env.MODE === 'development') {
                 return 'http://localhost:8000';
             } else {
-                return 'https://miniature-goggles-9x7jx4r4rq7295g9-8000.app.github.dev';
+                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
             }
         },
         

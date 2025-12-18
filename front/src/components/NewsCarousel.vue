@@ -1,4 +1,4 @@
-<template>
+classgo<template>
     <div class="news-carousel-container">
         <div class="news-carousel">
             <div class="news-scroll">
