@@ -85,7 +85,7 @@
                                     <v-icon color="primary" class="contact-icon">mdi-phone</v-icon>
                                 </template>
                                 <v-list-item-title>Телефон</v-list-item-title>
-                                <v-list-item-subtitle>+7 (999) 123-45-67</v-list-item-subtitle>
+                                <v-list-item-subtitle>+375 (321) 123-45-67</v-list-item-subtitle>
                             </v-list-item>
 
                             <v-divider class="contact-divider"></v-divider>
@@ -95,7 +95,7 @@
                                     <v-icon color="primary" class="contact-icon">mdi-email</v-icon>
                                 </template>
                                 <v-list-item-title>Email</v-list-item-title>
-                                <v-list-item-subtitle>support@mechboards.ru</v-list-item-subtitle>
+                                <v-list-item-subtitle>supportmechboards@gmail.com</v-list-item-subtitle>
                             </v-list-item>
 
                             <v-divider class="contact-divider"></v-divider>
@@ -105,7 +105,7 @@
                                     <v-icon color="primary" class="contact-icon">mdi-map-marker</v-icon>
                                 </template>
                                 <v-list-item-title>Адрес сервиса</v-list-item-title>
-                                <v-list-item-subtitle>г. Москва, ул. Клавиатурная, д. 123</v-list-item-subtitle>
+                                <v-list-item-subtitle>г. Минск, ул. Клавиатурная, д. 123</v-list-item-subtitle>
                             </v-list-item>
                         </v-list>
                     </v-card-text>

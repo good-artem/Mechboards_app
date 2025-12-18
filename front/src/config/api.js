@@ -9,7 +9,7 @@ const API_CONFIG = {
     
     // Fallback для разных окружений
     if (import.meta.env.MODE === 'development') {
-      return 'http://localhost:8000';
+      return 'https://literate-happiness-jgjqgwvw67vfrxw-8000.app.github.dev';
     } else {
       return 'https://literate-happiness-jgjqgwvw67vfrxw-8000.app.github.dev';
     }
