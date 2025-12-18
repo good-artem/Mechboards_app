@@ -36,6 +36,7 @@
 <script>
 
 import '@/assets/styles/components/search-bar.css'
+import { useApi } from '@/composables/useApi'
 
 export default {
     name: "SearchBar",
@@ -67,34 +68,37 @@ export default {
             }
         },
         async performSearch() {
-    if (!this.searchQuery.trim()) {
-        this.searchResults = [];
-        this.showResults = false;
-        this.$emit('search', '');
-        return;
-    }
+            if (!this.searchQuery.trim()) {
+                this.searchResults = [];
+                this.showResults = false;
+                this.$emit('search', '');
+                return;
+            }
 
-    this.searchLoading = true;
-    
-    try {
-        // ИСПРАВЛЕНО: используем API_CONFIG вместо прямого fetch
-        const { get, endpoints } = useApi();
-        
-        const results = await get(`${endpoints.products.search}?q=${encodeURIComponent(this.searchQuery)}&limit=5`);
-        
-        this.searchResults = results;
-        this.showResults = true;
-        
-        // Эмитим событие для родительского компонента
-        this.$emit('search', this.searchQuery);
-    } catch (error) {
-        console.error('Ошибка поиска:', error);
-        this.searchResults = [];
-        this.showMessage('Ошибка поиска товаров', 'error');
-    } finally {
-        this.searchLoading = false;
-    }
-},
+            this.searchLoading = true;
+            
+            try {
+                const { get, endpoints } = useApi();
+                
+                // Правильный вызов search endpoint
+                const results = await get(`${endpoints.products.search}?q=${encodeURIComponent(this.searchQuery)}&limit=10`);
+                
+                this.searchResults = results;
+                this.showResults = true;
+                
+                // Эмитим событие для родительского компонента CatalogView
+                this.$emit('search', this.searchQuery);
+            } catch (error) {
+                console.error('Ошибка поиска:', error);
+                this.searchResults = [];
+                // Используем метод showMessage если он доступен
+                if (this.$parent && this.$parent.showMessage) {
+                    this.$parent.showMessage('Ошибка поиска товаров', 'error');
+                }
+            } finally {
+                this.searchLoading = false;
+            }
+        },
         clearSearch() {
             this.searchQuery = '';
             this.searchResults = [];

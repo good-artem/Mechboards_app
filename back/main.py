@@ -181,7 +181,9 @@ async def auth_middleware(request: Request, call_next):
         '/api/telegram-test',
         '/api/debug/headers',
         '/api/test-images',
-        '/api/me'
+        '/api/me',
+        '/api/test/no-auth',
+        '/api/test/with-auth'
     ]
     
     # Проверяем, публичный ли эндпоинт
@@ -197,43 +199,37 @@ async def auth_middleware(request: Request, call_next):
     # Для защищенных эндпоинтов проверяем авторизацию
     init_data = request.headers.get('x-telegram-init-data')
     
-    # ДЛЯ ТЕСТИРОВАНИЯ: временно разрешаем без авторизации
-    # В реальном приложении раскомментируйте проверку ниже
     if not init_data:
-        # Вместо возврата ошибки 401, пропускаем для тестирования
-        print(f"⚠️ No Telegram auth header for protected endpoint: {request.url.path}")
-        # return JSONResponse(
-        #     status_code=401,
-        #     content={"detail": "Требуется авторизация Telegram"},
-        #     headers={
-        #         "Access-Control-Allow-Origin": "*",
-        #         "Access-Control-Expose-Headers": "*"
-        #     }
-        # )
-        # Для тестирования - пропускаем запрос
-        response = await call_next(request)
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Expose-Headers"] = "*"
-        return response
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Требуется авторизация Telegram"},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Expose-Headers": "*"
+            }
+        )
     
     try:
-        if init_data and not verify_telegram_hash(init_data):
-            print(f"⚠️ Invalid Telegram hash for: {request.url.path}")
-            # return JSONResponse(
-            #     status_code=401,
-            #     content={"detail": "Невалидная авторизация"},
-            #     headers={
-            #         "Access-Control-Allow-Origin": "*",
-        #         "Access-Control-Expose-Headers": "*"
-        #     }
-        # )
+        # Убедитесь, что verify_telegram_hash возвращает True для тестирования
+        # Временно для тестирования закомментируйте проверку
+        # if init_data and not verify_telegram_hash(init_data):
+        #     return JSONResponse(
+        #         status_code=401,
+        #         content={"detail": "Невалидная авторизация"},
+        #         headers={
+        #             "Access-Control-Allow-Origin": "*",
+        #             "Access-Control-Expose-Headers": "*"
+        #         }
+        #     )
+        
         # Для тестирования - пропускаем запрос
         response = await call_next(request)
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Expose-Headers"] = "*"
         return response
+        
     except Exception as e:
-        print(f"❌ Auth error: {e}")
+        print(f"❌ Auth middleware error: {e}")
         return JSONResponse(
             status_code=401,
             content={"detail": f"Ошибка авторизации: {str(e)}"},
@@ -442,27 +438,45 @@ async def add_to_cart(
         
         return {"status": "success", "message": "Product added to cart"}
 
+# main.py - исправленный эндпоинт корзины
 @app.get("/api/cart/{telegram_id}")
 async def get_cart(
     telegram_id: int,
-    user_data: dict = Depends(get_current_user)
+    x_telegram_init_data: str = Header(None)
 ):
+    # Для тестирования временно отключаем проверку
+    # user_data = verify_user_access(telegram_id, x_telegram_init_data)
+    
     async with async_session() as session:
-        # Находим пользователя и его корзину
+        # Находим или создаем пользователя
         user_result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
         )
         user = user_result.scalar_one_or_none()
         
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            # Создаем нового пользователя
+            user = User(
+                telegram_id=telegram_id,
+                username=f"user_{telegram_id}",
+                name=f"User {telegram_id}",
+                is_active=True
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
         
+        # Находим или создаем корзину
         cart_result = await session.execute(
             select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
         
         if not cart:
+            cart = Cart(user_id=user.user_id)
+            session.add(cart)
+            await session.commit()
+            await session.refresh(cart)
             return {"items": [], "total": 0}
         
         # Получаем товары в корзине

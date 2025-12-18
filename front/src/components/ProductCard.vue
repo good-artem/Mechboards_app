@@ -57,61 +57,61 @@ export default {
         },
         
         getProductImage(product) {
-        console.log('🖼️ Product images data:', product.images);
-        
-        if (!product.images) {
-            return this.getFallbackImage(product.name);
-        }
-        
-        try {
-            let images = product.images;
+            console.log('🖼️ Product images data:', product.images);
             
-            // Если это строка JSON
-            if (typeof images === 'string') {
+            if (!product.images) {
+                return this.getFallbackImage(product.name);
+            }
+            
             try {
-                images = JSON.parse(images);
+                let images = product.images;
+                
+                // Если это строка JSON
+                if (typeof images === 'string') {
+                    try {
+                        images = JSON.parse(images);
+                    } catch (e) {
+                        console.warn('❌ Cannot parse images JSON, using as is:', e);
+                        // Попробуем как обычную строку
+                        if (images.startsWith('[') && images.endsWith(']')) {
+                            images = images.slice(1, -1).split(',').map(img => img.trim().replace(/['"]/g, ''));
+                        } else {
+                            images = [images];
+                        }
+                    }
+                }
+                
+                // Если массив и есть элементы
+                if (Array.isArray(images) && images.length > 0) {
+                    let imagePath = images[0];
+                    
+                    // Убираем возможные обратные слеши
+                    imagePath = imagePath.replace(/\\/g, '/');
+                    
+                    // Если путь уже полный URL
+                    if (imagePath.startsWith('http')) {
+                        return imagePath;
+                    }
+                    
+                    // Если путь относительный
+                    if (imagePath.startsWith('assets/') || imagePath.startsWith('/assets/')) {
+                        // Убираем начальный слеш если есть
+                        if (imagePath.startsWith('/')) {
+                            imagePath = imagePath.substring(1);
+                        }
+                        // Базовый URL
+                        const baseUrl = this.getApiBaseUrl();
+                        return `${baseUrl}/${imagePath}`;
+                    }
+                    
+                    // Любой другой путь
+                    return `${this.getApiBaseUrl()}/${imagePath}`;
+                }
             } catch (e) {
-                console.warn('❌ Cannot parse images JSON, using as is:', e);
-                // Попробуем как обычную строку
-                if (images.startsWith('[') && images.endsWith(']')) {
-                images = images.slice(1, -1).split(',').map(img => img.trim().replace(/['"]/g, ''));
-                } else {
-                images = [images];
-                }
-            }
+                console.error('❌ Error processing image:', e);
             }
             
-            // Если массив и есть элементы
-            if (Array.isArray(images) && images.length > 0) {
-            let imagePath = images[0];
-            
-            // Убираем возможные обратные слеши
-            imagePath = imagePath.replace(/\\/g, '/');
-            
-            // Если путь уже полный URL
-            if (imagePath.startsWith('http')) {
-                return imagePath;
-            }
-            
-            // Если путь относительный
-            if (imagePath.startsWith('assets/') || imagePath.startsWith('/assets/')) {
-                // Убираем начальный слеш если есть
-                if (imagePath.startsWith('/')) {
-                imagePath = imagePath.substring(1);
-                }
-                // Базовый URL для разработки
-                const baseUrl = 'http://localhost:8000';
-                return `${baseUrl}/${imagePath}`;
-            }
-            
-            // Любой другой путь
-            return `http://localhost:8000/${imagePath}`;
-            }
-        } catch (e) {
-            console.error('❌ Error processing image:', e);
-        }
-        
-        return this.getFallbackImage(product.name);
+            return this.getFallbackImage(product.name);
         },
         
         getFallbackImage(productName) {

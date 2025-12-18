@@ -367,11 +367,29 @@ export default {
                 // Если images это массив
                 if (Array.isArray(images)) {
                     return images.map(img => {
-                        // Если это относительный путь, добавляем базовый URL
-                        if (img.startsWith('/')) {
-                            return `${this.getApiBaseUrl()}${img}`;
+                        let imagePath = img;
+                        
+                        // Убираем возможные обратные слеши
+                        imagePath = imagePath.replace(/\\/g, '/');
+                        
+                        // Если путь уже полный URL
+                        if (imagePath.startsWith('http')) {
+                            return imagePath;
                         }
-                        return img;
+                        
+                        // Если путь относительный
+                        if (imagePath.startsWith('assets/') || imagePath.startsWith('/assets/')) {
+                            // Убираем начальный слеш если есть
+                            if (imagePath.startsWith('/')) {
+                                imagePath = imagePath.substring(1);
+                            }
+                            // Базовый URL для разработки
+                            const baseUrl = this.getApiBaseUrl();
+                            return `${baseUrl}/${imagePath}`;
+                        }
+                        
+                        // Любой другой относительный путь
+                        return `${this.getApiBaseUrl()}/${imagePath}`;
                     });
                 }
             } catch (e) {
@@ -420,6 +438,19 @@ export default {
         }
     },
     methods: {
+        getApiBaseUrl() {
+            // Проверяем переменные окружения
+            if (import.meta.env.VITE_API_BASE_URL) {
+                return import.meta.env.VITE_API_BASE_URL;
+            }
+            
+            // Определяем среду
+            if (import.meta.env.MODE === 'development') {
+                return 'http://localhost:8000';
+            } else {
+                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+            }
+        },
         showMessage(message, type = 'success') {
             this.snackbarMessage = message;
             this.snackbarColor = type === 'error' ? 'error' : 'success';
@@ -637,8 +668,12 @@ export default {
         // Обработчики для SearchBar
         handleSearch(searchQuery) {
             this.searchQuery = searchQuery;
-            if (this.showProducts) {
-                this.fetchProducts(this.selectedCategory?.category_id);
+            if (searchQuery.trim()) {
+                this.fetchProductsForSearch(searchQuery);
+            } else if (this.selectedCategory) {
+                this.fetchProducts(this.selectedCategory.category_id);
+            } else {
+                this.backToCategories();
             }
         },
         handleClearSearch() {
