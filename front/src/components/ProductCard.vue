@@ -59,16 +59,26 @@ export default {
         getProductImage(product) {
             if (product.images) {
                 try {
-                    // Если images это строка JSON
-                    if (typeof product.images === 'string') {
-                        const parsedImages = JSON.parse(product.images);
-                        if (Array.isArray(parsedImages) && parsedImages.length > 0) {
-                            return parsedImages[0];
-                        }
+                    let images = product.images;
+                    
+                    if (typeof images === 'string') {
+                        images = JSON.parse(images);
                     }
-                    // Если images это массив
-                    if (Array.isArray(product.images) && product.images.length > 0) {
-                        return product.images[0];
+                    
+                    if (Array.isArray(images) && images.length > 0) {
+                        let imagePath = images[0];
+                        
+                        // Если путь относительный, добавляем базовый URL
+                        if (imagePath.startsWith('/assets')) {
+                            // Для разработки
+                            if (import.meta.env.MODE === 'development') {
+                                return `http://localhost:8000${imagePath}`;
+                            } else {
+                                // Для продакшена, укажите ваш домен
+                                return `${window.location.origin}${imagePath}`;
+                            }
+                        }
+                        return imagePath;
                     }
                 } catch (e) {
                     console.warn('Cannot parse product images:', e);
