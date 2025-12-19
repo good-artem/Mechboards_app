@@ -99,16 +99,7 @@
                             </v-list-item>
                         </v-list>
                     </v-card-text>
-                    
-                    <v-card-actions class="profile-actions pa-4">
-                        <v-btn @click="testConnection" color="primary" variant="outlined" :loading="testing" block>
-                            <v-icon left>mdi-connection</v-icon>
-                            Проверить подключение
-                        </v-btn>
-                    </v-card-actions>
                 </v-card>
-
-                <!-- Результат тестирования -->
                 <v-card v-if="testResult" class="test-result-card mt-4 pa-4">
                     <v-alert :type="testResult.type" :icon="testResult.icon" variant="tonal">
                         {{ testResult.message }}
@@ -135,6 +126,63 @@
             Проверить подключение
         </v-btn>
     </v-card-actions>
+  <!-- Добавляем раздел для заказов товаров -->
+  <v-card-text v-if="userOrders.length > 0" class="mt-4">
+    <v-card-title class="font-weight-bold">Мои заказы товаров</v-card-title>
+    <v-list class="mt-2">
+      <v-list-item v-for="order in userOrders" :key="order.order_id" class="mb-2">
+        <v-list-item-title>Заказ #{{ order.order_number }}</v-list-item-title>
+        <v-list-item-subtitle class="text-primary font-weight-bold">
+          Сумма: {{ formatPrice(order.total_amount) }}
+        </v-list-item-subtitle>
+        <v-list-item-subtitle :class="getStatusColor(order.status)">
+          Статус: {{ order.status }}
+        </v-list-item-subtitle>
+        <v-list-item-subtitle>
+          Дата: {{ formatDate(order.created_at) }}
+        </v-list-item-subtitle>
+        <v-expansion-panels>
+          <v-expansion-panel>
+            <v-expansion-panel-title>Товары в заказе</v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-list dense>
+                <v-list-item v-for="(item, index) in order.items" :key="index">
+                  <v-list-item-title>{{ item.name }} ({{ item.quantity }} шт.)</v-list-item-title>
+                  <v-list-item-subtitle>
+                    Цена за шт: {{ formatPrice(item.price) }}. Итого: {{ formatPrice(item.subtotal) }}
+                  </v-list-item-subtitle>
+                </v-list-item>
+              </v-list>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-list-item>
+    </v-list>
+  </v-card-text>
+  
+  <!-- Добавляем раздел для заказанных услуг -->
+  <v-card-text v-if="serviceOrders.length > 0" class="mt-4">
+    <v-card-title class="font-weight-bold">Мои заказанные услуги</v-card-title>
+    <v-list class="mt-2">
+      <v-list-item v-for="order in serviceOrders" :key="order.service_order_id" class="mb-2">
+        <v-list-item-title>{{ order.service.name }}</v-list-item-title>
+        <v-list-item-subtitle>{{ order.service.description }}</v-list-item-subtitle>
+        <v-list-item-subtitle class="text-primary font-weight-bold">
+          {{ formatPrice(order.price) }}
+        </v-list-item-subtitle>
+        <v-list-item-subtitle :class="getStatusColor(order.status)">
+          Статус: {{ order.status }}
+        </v-list-item-subtitle>
+        <v-list-item-subtitle v-if="order.notes">
+          Комментарий: {{ order.notes }}
+        </v-list-item-subtitle>
+        <v-list-item-subtitle>
+          Заказано: {{ formatDate(order.created_at) }}
+        </v-list-item-subtitle>
+      </v-list-item>
+    </v-list>
+  </v-card-text>
+ 
 </template>
 
 <script>
@@ -162,15 +210,25 @@ export default {
             testResult: null,
             debugInfo: null,
             isAdmin: false,
-            adminUrl: 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev/admin'
+            adminUrl: 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev/admin',
+            orders: [],
+            serviceOrders: [],
+            loadingOrders: false,
+            loadingServiceOrders: false,
+            userOrders: [],
+            serviceOrders: []
         }
     },
     async mounted() {
         console.log('🔍 ProfileView mounted');
         await this.initializeProfile();
         await this.checkAdminStatus();
+        await this.fetchUserOrders();
+        await this.fetchServiceOrders();
     },
     methods: {
+
+
         async checkAdminStatus() {
             try {
                 const { get } = useApi();
@@ -354,19 +412,115 @@ export default {
             
             this.testing = false;
         },
-
+        getStatusColor(status) {
+        const statusColors = {
+            'Создан': 'text-grey',
+            'Оплачен': 'text-warning',
+            'Подтвержден': 'text-info',
+            'Отправлен': 'text-success',
+            'Доставлен': 'text-primary',
+            'Отменен': 'text-error'
+        };
+        return statusColors[status] || 'text-grey';
+        },
         formatDate(dateString) {
-            if (!dateString) return 'Неизвестно';
+        if (!dateString) return 'Неизвестно';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ru-RU', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        },
+        async fetchUserOrders() {
+            this.loadingOrders = true;
             try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('ru-RU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-            } catch (e) {
-                return 'Неизвестно';
+                const { get } = useApi();
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                const telegramId = tg_user?.id || 391622124;
+                
+                const orders = await get(`/api/users/${telegramId}/orders`);
+                this.orders = orders;
+            } catch (error) {
+                console.error('❌ Ошибка загрузки заказов:', error);
+            } finally {
+                this.loadingOrders = false;
             }
+        },
+        
+        async fetchUserServiceOrders() {
+            this.loadingServiceOrders = true;
+            try {
+                const { get } = useApi();
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                const telegramId = tg_user?.id || 391622124;
+                
+                const serviceOrders = await get(`/api/users/${telegramId}/service_orders`);
+                this.serviceOrders = serviceOrders;
+            } catch (error) {
+                console.error('❌ Ошибка загрузки заказов на услуги:', error);
+            } finally {
+                this.loadingServiceOrders = false;
+            }
+        },
+        
+        getOrderColor(status) {
+            const colors = {
+                'Создан': 'blue',
+                'Оплачен': 'green',
+                'Подтвержден': 'orange',
+                'Отправлен': 'purple',
+                'Доставлен': 'success',
+                'Отменен': 'error'
+            };
+            return colors[status] || 'grey';
+        },
+        async fetchUserOrders() {
+            try {
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                if (!tg_user) return;
+                
+                const { get, endpoints } = useApi();
+                const userId = tg_user.id;
+                const orders = await get(endpoints.users.orders(userId));
+                this.userOrders = orders || [];
+            } catch (error) {
+                console.error('❌ Ошибка загрузки заказов:', error);
+                this.userOrders = [];
+            }
+        }, 
+        async fetchServiceOrders() {
+            try {
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                if (!tg_user) return;
+                
+                const { get } = useApi();
+                const userId = tg_user.id;
+                const serviceOrders = await get(`/api/users/${userId}/service_orders`);
+                this.serviceOrders = serviceOrders || [];
+            } catch (error) {
+                console.error('❌ Ошибка загрузки заказанных услуг:', error);
+                this.serviceOrders = [];
+            }
+        },
+        formatPrice(number) {
+            return new Intl.NumberFormat('ru-BY', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(number).replace('.', ',') + ' p.';
+        },
+        getOrderIcon(status) {
+            const icons = {
+                'Создан': 'mdi-clock',
+                'Оплачен': 'mdi-credit-card-check',
+                'Подтвержден': 'mdi-check-circle',
+                'Отправлен': 'mdi-truck',
+                'Доставлен': 'mdi-package-variant-check',
+                'Отменен': 'mdi-cancel'
+            };
+            return icons[status] || 'mdi-help-circle';
         }
     }
 }

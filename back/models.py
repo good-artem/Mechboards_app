@@ -115,8 +115,9 @@ class Service(Base):
     category: Mapped[str] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     image_url: Mapped[str] = mapped_column(String(500), nullable=True)
-    # Relationships (определяем позже после объявления других классов)
+    # Relationships
     service_orders: Mapped[list["ServiceOrder"]] = relationship("ServiceOrder", back_populates="service", cascade="all, delete-orphan")
+    cart_service_items: Mapped[list["CartServiceItem"]] = relationship("CartServiceItem", back_populates="service", cascade="all, delete-orphan") 
 
 class ServiceOrder(Base):
     __tablename__ = 'service_orders'
@@ -150,7 +151,8 @@ class Cart(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="cart")
     cart_items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="cart", cascade="all, delete-orphan")
-
+    cart_service_items: Mapped[list["CartServiceItem"]] = relationship("CartServiceItem", back_populates="cart", cascade="all, delete-orphan") 
+    
 class CartItem(Base):
     __tablename__ = 'cart_items'
     cart_item_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -160,6 +162,17 @@ class CartItem(Base):
     # Relationships
     cart: Mapped["Cart"] = relationship("Cart", back_populates="cart_items")
     product: Mapped["Product"] = relationship("Product", back_populates="cart_items")
+
+class CartServiceItem(Base):
+    __tablename__ = 'cart_service_items'
+    cart_service_item_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    cart_id: Mapped[int] = mapped_column(ForeignKey('carts.cart_id', ondelete='CASCADE'), nullable=False)
+    service_id: Mapped[int] = mapped_column(ForeignKey('services.service_id', ondelete='CASCADE'), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    notes: Mapped[str] = mapped_column(Text, nullable=True)  # Комментарии к услуге
+    # Relationships
+    cart: Mapped["Cart"] = relationship("Cart", back_populates="cart_service_items")
+    service: Mapped["Service"] = relationship("Service", back_populates="cart_service_items")
 
 class News(Base):
     __tablename__ = 'news'

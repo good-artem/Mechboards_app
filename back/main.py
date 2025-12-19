@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News, Service, ServiceOrder, OrderStatus
+from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News, Service, ServiceOrder, OrderStatus, CartServiceItem
 from sqlalchemy import select, func, text
 from typing import List, Optional
 import uuid
@@ -20,41 +20,31 @@ from fastapi import Query
 # Получаем токен бота из переменных окружения
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
+# Функция для проверки хэша (для безопасности)
 def verify_telegram_hash(init_data: str) -> bool:
-    """
-    Проверяет подлинность данных от Telegram WebApp.
-    Использует initData (строку), а не initDataUnsafe.
-    """
+    """Проверяет подлинность данных от Telegram WebApp."""
     try:
-        # Парсим query string
         parsed_data = dict(parse_qsl(init_data))
         received_hash = parsed_data.get('hash')
         if not received_hash:
             return False
-        # 1. УДАЛЯЕМ из проверки только поле 'hash'
-        data_check_list = []
-        for key, value in sorted(parsed_data.items()):
-            if key == 'hash':
-                continue  # Исключаем hash из расчета
-            data_check_list.append(f"{key}={value}")
-        # 2. Формируем строку для проверки
-        data_check_string = "\n".join(data_check_list)
-        # 3. Вычисляем секретный ключ (HMAC-SHA256)
-        secret_key = hmac.new(
-            key=b"WebAppData",
-            msg=BOT_TOKEN.encode(),
-            digestmod=hashlib.sha256
-        ).digest()
-        # 4. Вычисляем хэш и сравниваем
-        calculated_hash = hmac.new(
-            key=secret_key,
-            msg=data_check_string.encode(),
-            digestmod=hashlib.sha256
-        ).hexdigest()
-        # Безопасное сравнение хэшей
-        return hmac.compare_digest(received_hash, calculated_hash)
+
+        # Получаем токен бота
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if not bot_token:
+            print("⚠️ TELEGRAM_BOT_TOKEN не установлен!")
+            return False
+
+        # Собираем строку для проверки
+        data_check_string = '&'.join([f'{k}={v}' for k, v in sorted(parsed_data.items()) if k != 'hash'])
+
+        # Создаем хэш
+        secret_key = hmac.new(b'WebAppData', bot_token.encode(), hashlib.sha256).digest()
+        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+        return calculated_hash == received_hash
     except Exception as e:
-        print(f"❌ Ошибка верификации Telegram hash: {e}")
+        print(f"❌ Ошибка проверки хэша: {e}")
         return False
 
 def get_telegram_user_from_init_data(init_data: str):
@@ -108,6 +98,13 @@ class CreateOrderRequest(BaseModel):
     shipping_address: str
     customer_notes: Optional[str] = None
 
+# --- Добавьте эту модель для заказа услуги ---
+class CreateServiceOrderRequest(BaseModel):
+    telegram_id: int
+    service_id: int
+    notes: Optional[str] = None
+# --- Конец добавления ---
+
 class CreateUserRequest(BaseModel):
     telegram_id: int
     username: Optional[str] = None
@@ -119,6 +116,20 @@ class UpdateCartItemRequest(BaseModel):
 
 class RemoveCartItemRequest(BaseModel):
     cart_item_id: int
+
+class AddServiceToCartRequest(BaseModel):
+    telegram_id: int
+    service_id: int
+    quantity: int = 1
+    notes: Optional[str] = None
+
+class UpdateCartServiceItemRequest(BaseModel):
+    cart_service_item_id: int
+    quantity: int
+    notes: Optional[str] = None
+
+class RemoveCartServiceItemRequest(BaseModel):
+    cart_service_item_id: int
 
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
@@ -221,20 +232,23 @@ async def get_news():
 
 @app.get("/api/products/search")
 async def search_products(
-    q: str = "",
-    category_id: Optional[int] = None,
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    q: str = Query("", description="Поисковый запрос"),
+    category_id: Optional[int] = Query(None, description="ID категории"),
+    limit: int = Query(20, ge=1, le=100, description="Лимит"),
+    offset: int = Query(0, ge=0, description="Смещение")
 ):
     async with async_session() as session:
         try:
+            # Преобразуем q в строку, даже если он None
+            search_term = q if q else ""
+            
             query = select(Product).where(
                 Product.is_available == True
             ).options(selectinload(Product.category))
             
-            # Поиск по названию, только если есть запрос
-            if q and q.strip():
-                query = query.where(Product.name.ilike(f"%{q.strip()}%"))
+            # Поиск по названию
+            if search_term.strip():
+                query = query.where(Product.name.ilike(f"%{search_term.strip()}%"))
             
             # Фильтр по категории
             if category_id is not None:
@@ -267,9 +281,6 @@ async def search_products(
                 result_products.append(product_dict)
             
             return result_products
-        except ValueError as ve:
-            print(f"❌ Search validation error: {ve}")
-            raise HTTPException(status_code=400, detail="Invalid parameter format")
         except Exception as e:
             print(f"❌ Search error: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -277,28 +288,42 @@ async def search_products(
 # Добавляем автоматическое создание пользователя при запросе
 @app.get("/api/user/{telegram_id}")
 async def get_user(telegram_id: int, request: Request):
+    # Проверяем, что запрос пришел от конкретного пользователя Telegram
+    init_data = request.headers.get('x-telegram-init-data', '')
+    if not init_data:
+        # Если initData не передан, можно либо вернуть 400, либо создать/найти пользователя без проверки
+        # В данном случае, мы создаем/находим без проверки
+        pass # Продолжаем без проверки
+    else:
+        # Если initData передан, проверяем его
+        user_data = verify_user_access(telegram_id, init_data) # Вызывает verify_telegram_hash и проверяет id
+        # user_data содержит информацию из initData, можно использовать для обновления профиля
+
     async with async_session() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
-        
         if not user:
             # Создаем пользователя автоматически
-            telegram_user = get_telegram_user_from_init_data(request.headers.get('x-telegram-init-data', ''))
-            if telegram_user and telegram_user.get('id') == telegram_id:
-                user = User(
-                    telegram_id=telegram_id,
-                    username=telegram_user.get('username'),
-                    name=f"{telegram_user.get('first_name', '')} {telegram_user.get('last_name', '')}".strip(),
-                    is_active=True
-                )
-                session.add(user)
-                await session.commit()
-                await session.refresh(user)
-            else:
-                raise HTTPException(status_code=404, detail="User not found")
-        
+            # Используем данные из initData, если они были проверены
+            username = f'user_{telegram_id}'
+            name = f'User {telegram_id}'
+            if 'user_data' in locals() and user_data: # Проверяем, была ли переменная user_data определена
+                 username = user_data.get('username', username)
+                 name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+                 if not name:
+                     name = f"User {telegram_id}"
+
+            user = User(
+                telegram_id=telegram_id,
+                username=username,
+                name=name,
+                is_active=True
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+
+        # Возвращаем данные пользователя
         return {
             "user_id": user.user_id,
             "telegram_id": user.telegram_id,
@@ -309,34 +334,36 @@ async def get_user(telegram_id: int, request: Request):
             "address": user.address,
             "created_at": user.created_at.isoformat(),
             "is_active": user.is_active,
-            "is_admin": user.is_admin
+            "is_admin": user.is_admin # Добавим это поле в ответ, если оно нужно
         }
-
 @app.get("/api/users/{telegram_id}/stats")
 async def get_user_stats(telegram_id: int):
     async with async_session() as session:
-        # Находим пользователя
-        user_result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
+        # Сначала получаем пользователя по telegram_id
+        user_result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = user_result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
-        # Считаем заказы пользователя
-        orders_result = await session.execute(
-            select(Order).where(Order.user_id == user.user_id)
-        )
-        orders = orders_result.scalars().all()
-        
-        # Считаем завершенные заказы
-        completed_orders = [order for order in orders if order.status == OrderStatus.DELIVERED]
-        
-        return {
-            "total_orders": len(orders),
-            "completed_orders": len(completed_orders)
-        }
 
+        # Подсчитываем заказы пользователя через связь с User
+        orders_result = await session.execute(
+            select(func.count(Order.order_id)).where(Order.user_id == user.user_id) # Используем user_id
+        )
+        total_orders = orders_result.scalar_one()
+
+        completed_orders_result = await session.execute(
+            select(func.count(Order.order_id)).where(
+                Order.user_id == user.user_id, # Используем user_id
+                Order.status == OrderStatus.DELIVERED # Используем правильный статус
+            )
+        )
+        completed_orders = completed_orders_result.scalar_one()
+
+        return {
+            "total_orders": total_orders,
+            "completed_orders": completed_orders
+        }
+       
 @app.post("/api/cart/add")
 async def add_to_cart(request: AddToCartRequest):
     async with async_session() as session:
@@ -404,70 +431,85 @@ async def add_to_cart(request: AddToCartRequest):
         await session.commit()
         return {"status": "success", "message": message}
 
+# Обновите функцию get_cart для включения услуг:
 @app.get("/api/cart/{telegram_id}")
 async def get_cart(telegram_id: int):
-    print(f"🔄 Запрос корзины для {telegram_id}")
     async with async_session() as session:
-        # Находим пользователя
-        user_result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
+        # Проверяем, существует ли пользователь по telegram_id
+        user_result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         user = user_result.scalar_one_or_none()
         if not user:
-            # Создаем пользователя если не существует
-            user = User(
-                telegram_id=telegram_id,
-                username=f"user_{telegram_id}",
-                name=f"User {telegram_id}",
-                is_active=True
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-        
+            raise HTTPException(status_code=404, detail="User not found")
+
         # Находим корзину пользователя
         cart_result = await session.execute(
             select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
         if not cart:
-            # Создаем корзину если не существует
-            cart = Cart(user_id=user.user_id)
-            session.add(cart)
-            await session.commit()
-            await session.refresh(cart)
-        
-        # Получаем товары в корзине с информацией о продуктах
+            # Если корзины нет, возвращаем пустую
+            return {"items": [], "service_items": [], "total": 0.0}
+
+        # Получаем товары в корзине
         cart_items_result = await session.execute(
             select(CartItem)
-            .where(CartItem.cart_id == cart.cart_id)
             .options(selectinload(CartItem.product))
+            .where(CartItem.cart_id == cart.cart_id)
         )
         cart_items = cart_items_result.scalars().all()
-        
-        items = []
-        total = 0
-        for item in cart_items:
-            if item.product:
-                subtotal = float(item.product.price) * item.quantity
-                items.append({
+
+        # Получаем услуги в корзине
+        cart_service_items_result = await session.execute(
+            select(CartServiceItem)
+            .options(selectinload(CartServiceItem.service))
+            .where(CartServiceItem.cart_id == cart.cart_id)
+        )
+        cart_service_items = cart_service_items_result.scalars().all()
+
+        # Вычисляем общую сумму
+        products_total = sum(item.quantity * item.product.price for item in cart_items)
+        services_total = sum(item.quantity * item.service.price for item in cart_service_items)
+        total = products_total + services_total
+
+        # Формируем ответ
+        cart_data = {
+            "items": [
+                {
                     "cart_item_id": item.cart_item_id,
+                    "product_id": item.product_id,
+                    "quantity": item.quantity,
                     "product": {
                         "product_id": item.product.product_id,
                         "name": item.product.name,
-                        "description": item.product.description,
                         "price": float(item.product.price),
-                        "stock_quantity": item.product.stock_quantity,
-                        "category_id": item.product.category_id,
-                        "is_available": item.product.is_available,
                         "images": json.loads(item.product.images) if item.product.images else []
-                    },
+                    }
+                }
+                for item in cart_items
+            ],
+            "service_items": [
+                {
+                    "cart_service_item_id": item.cart_service_item_id,
+                    "service_id": item.service_id,
                     "quantity": item.quantity,
-                    "subtotal": subtotal
-                })
-                total += subtotal
-        
-        return {"items": items, "total": total}
+                    "notes": item.notes,
+                    "service": {
+                        "service_id": item.service.service_id,
+                        "name": item.service.name,
+                        "price": float(item.service.price),
+                        "description": item.service.description,
+                        "duration": item.service.duration,
+                        "image_url": item.service.image_url or "https://via.placeholder.com/100x100/667eea/ffffff?text=Service"
+                    }
+                }
+                for item in cart_service_items
+            ],
+            "total": float(total),
+            "products_total": float(products_total),
+            "services_total": float(services_total)
+        }
+
+        return cart_data
 
 @app.put("/api/cart/update")
 async def update_cart_item(
@@ -629,75 +671,71 @@ async def get_services():
             raise HTTPException(status_code=500, detail="Ошибка получения услуг")
 
 @app.post("/api/services/order")
-async def order_service(
-    telegram_id: int,
-    service_id: int,
-    notes: Optional[str] = None
-):
+async def order_service(request: CreateServiceOrderRequest): # Изменено: принимаем модель
     async with async_session() as session:
-        # Находим пользователя
+        # Находим пользователя по telegram_id из тела запроса
         user_result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
+            select(User).where(User.telegram_id == request.telegram_id) # Изменено: request.telegram_id
         )
         user = user_result.scalar_one_or_none()
         if not user:
             user = User(
-                telegram_id=telegram_id,
-                username=f"user_{telegram_id}",
-                name=f"User {telegram_id}",
+                telegram_id=request.telegram_id, # Изменено: request.telegram_id
+                username=f"user_{request.telegram_id}", # Изменено: request.telegram_id
+                name=f"User {request.telegram_id}", # Изменено: request.telegram_id
                 is_active=True
             )
             session.add(user)
             await session.commit()
             await session.refresh(user)
-        
-        # Находим услугу
+
+        # Находим услугу по service_id из тела запроса
         service_result = await session.execute(
-            select(Service).where(Service.service_id == service_id)
+            select(Service).where(Service.service_id == request.service_id) # Изменено: request.service_id
         )
         service = service_result.scalar_one_or_none()
         if not service:
             raise HTTPException(status_code=404, detail="Service not found")
-        
+
         # Создаем заказ на услугу
         service_order = ServiceOrder(
             user_id=user.user_id,
-            service_id=service.service_id,
-            notes=notes,
+            service_id=request.service_id, # Изменено: request.service_id
+            notes=request.notes, # Изменено: request.notes
             price=float(service.price),
             status=OrderStatus.CREATED
         )
         session.add(service_order)
         await session.commit()
-        
+
         return {
             "status": "success",
             "message": f"Заказ на услугу '{service.name}' принят",
             "order_id": service_order.service_order_id
         }
 
+# ... (остальной код) ...
 @app.get("/api/users/{telegram_id}/orders")
 async def get_user_orders(telegram_id: int):
-    """Получить актуальные заказы пользователя (не выполненные)"""
+    """Получить ВСЕ заказы пользователя"""
     async with async_session() as session:
-        # Находим пользователя
+        # Находим пользователя по telegram_id
         user_result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
         )
         user = user_result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
-        # Получаем заказы, которые не доставлены
+
+        # Получаем ВСЕ заказы пользователя (не только не доставленные)
         orders_result = await session.execute(
             select(Order)
-            .where(Order.user_id == user.user_id)
-            .where(Order.status != OrderStatus.DELIVERED)
+            .where(Order.user_id == user.user_id) # Используем user_id
             .options(selectinload(Order.order_items).selectinload(OrderItem.product))
             .order_by(Order.created_at.desc())
         )
         orders = orders_result.scalars().all()
-        
+
         # Формируем ответ
         result_orders = []
         for order in orders:
@@ -707,7 +745,10 @@ async def get_user_orders(telegram_id: int):
                 "order_number": order.order_number,
                 "total_amount": float(total),
                 "status": order.status.value,
+                "shipping_method": order.shipping_method,
+                "shipping_address": order.shipping_address,
                 "created_at": order.created_at.isoformat(),
+                "updated_at": order.updated_at.isoformat(),
                 "items": [{
                     "product_id": item.product.product_id,
                     "name": item.product.name,
@@ -716,9 +757,8 @@ async def get_user_orders(telegram_id: int):
                     "subtotal": float(item.total_price)
                 } for item in order.order_items]
             })
-        
-        return result_orders
 
+        return result_orders
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "message": "API is working"}
@@ -751,6 +791,156 @@ async def simple_search(q: str = "", limit: int = 50):
             }
             for p in products
         ]
+    
+@app.get("/api/users/{telegram_id}/service_orders")
+async def get_user_service_orders(telegram_id: int):
+    """Получить заказы на услуги пользователя"""
+    async with async_session() as session:
+        # Находим пользователя по telegram_id
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Получаем заказы на услуги пользователя
+        service_orders_result = await session.execute(
+            select(ServiceOrder)
+            .where(ServiceOrder.user_id == user.user_id)
+            .options(selectinload(ServiceOrder.service))
+            .order_by(ServiceOrder.created_at.desc())
+        )
+        service_orders = service_orders_result.scalars().all()
+
+        # Формируем ответ
+        result_orders = []
+        for order in service_orders:
+            result_orders.append({
+                "service_order_id": order.service_order_id,
+                "service": {
+                    "service_id": order.service.service_id,
+                    "name": order.service.name,
+                    "description": order.service.description,
+                    "price": float(order.service.price),
+                    "duration": order.service.duration,
+                    "image_url": order.service.image_url or "https://via.placeholder.com/100x100/667eea/ffffff?text=Service"
+                },
+                "notes": order.notes,
+                "status": order.status.value,
+                "price": float(order.price),
+                "created_at": order.created_at.isoformat()
+            })
+
+        return result_orders
+    
+@app.post("/api/cart/add_service")
+async def add_service_to_cart(request: AddServiceToCartRequest):
+    async with async_session() as session:
+        # Находим или создаем пользователя
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == request.telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            user = User(
+                telegram_id=request.telegram_id,
+                username=f"user_{request.telegram_id}",
+                name=f"User {request.telegram_id}",
+                is_active=True
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+        
+        # Находим или создаем корзину
+        cart_result = await session.execute(
+            select(Cart).where(Cart.user_id == user.user_id)
+        )
+        cart = cart_result.scalar_one_or_none()
+        if not cart:
+            cart = Cart(user_id=user.user_id)
+            session.add(cart)
+            await session.commit()
+            await session.refresh(cart)
+        
+        # Проверяем существование услуги
+        service_result = await session.execute(
+            select(Service).where(Service.service_id == request.service_id)
+        )
+        service = service_result.scalar_one_or_none()
+        if not service:
+            raise HTTPException(status_code=404, detail="Service not found")
+        if not service.is_active:
+            raise HTTPException(status_code=400, detail="Service is not available")
+        
+        # Проверяем, есть ли уже такая услуга в корзине
+        existing_item_result = await session.execute(
+            select(CartServiceItem).where(
+                CartServiceItem.cart_id == cart.cart_id,
+                CartServiceItem.service_id == request.service_id
+            )
+        )
+        existing_item = existing_item_result.scalar_one_or_none()
+        
+        if existing_item:
+            # Обновляем количество
+            new_quantity = existing_item.quantity + request.quantity
+            existing_item.quantity = new_quantity
+            if request.notes:
+                existing_item.notes = request.notes
+            message = f"Количество обновлено: {new_quantity} шт."
+        else:
+            # Добавляем новую услугу в корзину
+            cart_service_item = CartServiceItem(
+                cart_id=cart.cart_id,
+                service_id=request.service_id,
+                quantity=request.quantity,
+                notes=request.notes
+            )
+            session.add(cart_service_item)
+            message = "Услуга добавлена в корзину"
+        
+        await session.commit()
+        return {"status": "success", "message": message}
+
+# Добавьте эндпоинт для обновления услуги в корзине:
+@app.put("/api/cart/update_service")
+async def update_cart_service_item(request: UpdateCartServiceItemRequest):
+    async with async_session() as session:
+        # Находим элемент корзины с услугой
+        result = await session.execute(
+            select(CartServiceItem).where(CartServiceItem.cart_service_item_id == request.cart_service_item_id)
+        )
+        cart_service_item = result.scalar_one_or_none()
+        if not cart_service_item:
+            raise HTTPException(status_code=404, detail="Cart service item not found")
+        
+        # Обновляем количество и заметки
+        cart_service_item.quantity = request.quantity
+        if request.notes is not None:
+            cart_service_item.notes = request.notes
+        
+        await session.commit()
+        return {"status": "success", "message": "Service in cart updated"}
+
+# Добавьте эндпоинт для удаления услуги из корзины:
+@app.delete("/api/cart/remove_service")
+async def remove_cart_service_item(request: RemoveCartServiceItemRequest):
+    async with async_session() as session:
+        # Находим элемент корзины с услугой
+        result = await session.execute(
+            select(CartServiceItem).where(CartServiceItem.cart_service_item_id == request.cart_service_item_id)
+        )
+        cart_service_item = result.scalar_one_or_none()
+        if not cart_service_item:
+            raise HTTPException(status_code=404, detail="Cart service item not found")
+        
+        # Удаляем элемент корзины
+        await session.delete(cart_service_item)
+        await session.commit()
+        return {"status": "success", "message": "Service removed from cart"}
+
 
 if __name__ == "__main__":
     import uvicorn

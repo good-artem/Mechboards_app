@@ -2,35 +2,46 @@ import asyncio
 import sys
 import os
 from datetime import datetime, timedelta
-import json  # Импортируем модуль json
+import json  # Добавьте в начало, если нет
 
 # Добавляем путь к текущей директории для импортов
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from models import async_session, Category, Product, Service, News
-from sqlalchemy import select, text
+from models import async_session, init_db, Category, Product, Service, News, User # Импортируем User и init_db
+from sqlalchemy import select, text # Импортируем text для PRAGMA
 
 async def seed_database():
+    # Обязательно инициализируем базу данных перед началом работы
+    print("Инициализация базы данных...")
+    await init_db()
+    print("✅ База данных инициализирована (таблицы созданы, если не существовали).")
+
     async with async_session() as session:
         try:
             print("Начинаем заполнение/обновление базы тестовыми данными...")
 
-            # 1. Проверяем и добавляем колонку image_url в таблицу services если её нет
-            try:
-                # Проверяем структуру таблицы services
-                result = await session.execute(text("PRAGMA table_info(services)"))
-                columns = [row[1] for row in result.fetchall()]
-                
-                if 'image_url' not in columns:
-                    print("Добавляем колонку image_url в таблицу services...")
-                    await session.execute(text("ALTER TABLE services ADD COLUMN image_url VARCHAR(500)"))
-                    await session.commit()
-                    print("✅ Колонка image_url добавлена")
-                else:
-                    print("✅ Колонка image_url уже существует")
-            except Exception as e:
-                print(f"⚠️ Ошибка при проверке/добавлении колонки image_url: {e}")
-                await session.rollback()
+            # Проверяем и добавляем колонку image_url в таблицу services
+            result = await session.execute(text("PRAGMA table_info(services)"))
+            columns = [row[1] for row in result.fetchall()]
+            if 'image_url' not in columns:
+                print("Добавляем колонку image_url в таблицу services...")
+                await session.execute(text("ALTER TABLE services ADD COLUMN image_url VARCHAR(500)")) # Используем VARCHAR(500) как в модели
+                await session.commit() # Коммитим сразу после ALTER TABLE
+                print("✅ Колонка image_url добавлена")
+            else:
+                print("✅ Колонка image_url уже существует.")
+
+            # Проверяем и добавляем колонку is_admin в таблицу users
+            result_users = await session.execute(text("PRAGMA table_info(users)"))
+            user_columns = [row[1] for row in result_users.fetchall()]
+            if 'is_admin' not in user_columns:
+                print("Добавляем колонку is_admin в таблицу users...")
+                await session.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0")) # 0 = False
+                await session.commit() # Коммитим сразу после ALTER TABLE
+                print("✅ Колонка is_admin добавлена")
+            else:
+                print("✅ Колонка is_admin уже существует.")
+
 
             # 1. КАТЕГОРИИ - upsert (обновляем если есть, создаем если нет)
             categories_data = [
@@ -45,7 +56,7 @@ async def seed_database():
                 {"name": "БУ клавиатуры", "description": "Бывшие в употреблении клавиатуры", "icon": "mdi-keyboard-return"},
             ]
 
-            created_categories = []
+            created_categories = {}
             for cat_data in categories_data:
                 # Проверяем, существует ли категория с таким именем
                 result = await session.execute(
@@ -68,9 +79,10 @@ async def seed_database():
                     session.add(category)
                     print(f"✅ Создана категория: {cat_data['name']}")
                 
-                created_categories.append(category)
+                # Добавляем в словарь для быстрого поиска по имени
+                await session.flush() # Убеждаемся, что category_id доступен
+                created_categories[category.name] = category
             
-            await session.flush()  # Сохраняем, чтобы получить ID
             print("✅ Категории обновлены/созданы")
 
             # 2. ТОВАРЫ - upsert по названию
@@ -80,7 +92,7 @@ async def seed_database():
                     "description": "Компактная 75% механическая клавиатура с Bluetooth",
                     "price": 4500.00,
                     "stock_quantity": 15,
-                    "category_id": created_categories[0].category_id,
+                    "category_name": "Весь каталог", # Используем имя категории
                     "images": [
                         "assets/images/products/Keychron_k2/Keychron_k2_1.png",
                         "assets/images/products/Keychron_k2/Keychron_k2_2.png",
@@ -93,7 +105,7 @@ async def seed_database():
                     "description": "Линейные свитчи Gateron Yellow (35 шт)",
                     "price": 800.00,
                     "stock_quantity": 50,
-                    "category_id": created_categories[1].category_id,
+                    "category_name": "Свитчи", # Используем имя категории
                     "images": [
                         "assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_1.png",
                         "assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_2.png",
@@ -106,7 +118,7 @@ async def seed_database():
                     "description": "Набор кейкапов из PBT пластика",
                     "price": 1200.00,
                     "stock_quantity": 25,
-                    "category_id": created_categories[2].category_id,
+                    "category_name": "Кейкапы", # Используем имя категории
                     "images": [
                         "assets/images/products/PBT_keycaps_set/PBT_keycaps_set_1.png",
                         "assets/images/products/PBT_keycaps_set/PBT_keycaps_set_2.png",
@@ -119,7 +131,7 @@ async def seed_database():
                     "description": "Набор стабилизаторов для клавиатуры",
                     "price": 400.00,
                     "stock_quantity": 30,
-                    "category_id": created_categories[3].category_id,
+                    "category_name": "Стабилизаторы", # Используем имя категории
                     "images": [
                         "assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_1.png",
                         "assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_2.png",
@@ -131,7 +143,7 @@ async def seed_database():
                     "description": "Смазка для свитчей и стабилизаторов",
                     "price": 600.00,
                     "stock_quantity": 20,
-                    "category_id": created_categories[4].category_id,
+                    "category_name": "Смазка и моддинг", # Используем имя категории
                     "images": [
                         "assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_1.png",
                         "assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_2.png",
@@ -141,6 +153,12 @@ async def seed_database():
             ]
 
             for prod_data in products_data:
+                # Находим категорию по имени
+                category = created_categories.get(prod_data["category_name"])
+                if not category:
+                    print(f"⚠️ Категория '{prod_data['category_name']}' не найдена для товара '{prod_data['name']}', пропускаем.")
+                    continue
+
                 result = await session.execute(
                     select(Product).where(Product.name == prod_data["name"])
                 )
@@ -150,14 +168,11 @@ async def seed_database():
                     # Обновляем существующий товар
                     product.description = prod_data["description"]
                     product.price = prod_data["price"]
-                    product.category_id = prod_data["category_id"]
+                    product.category_id = category.category_id # Присваиваем ID найденной категории
+                    product.images = json.dumps(prod_data["images"])
                     product.is_available = prod_data["is_available"]
-                    # Обработка изображений
-                    if isinstance(prod_data["images"], list):
-                        product.images = json.dumps(prod_data["images"])
-                    else:
-                        product.images = prod_data["images"]
                     # Не обновляем stock_quantity чтобы не сбрасывать остатки
+                    # product.stock_quantity = prod_data["stock_quantity"]
                     print(f"📝 Обновлен товар: {prod_data['name']}")
                 else:
                     # Создаем новый товар
@@ -166,7 +181,7 @@ async def seed_database():
                         description=prod_data["description"],
                         price=prod_data["price"],
                         stock_quantity=prod_data["stock_quantity"],
-                        category_id=prod_data["category_id"],
+                        category_id=category.category_id, # Присваиваем ID найденной категории
                         images=json.dumps(prod_data["images"]),
                         is_available=prod_data["is_available"]
                     )
@@ -184,7 +199,7 @@ async def seed_database():
                     "duration": "2-3 дня",
                     "category": "Сборка",
                     "is_active": True,
-                    "image_url": "https://via.placeholder.com/100x100/667eea/ffffff?text=Assembly"
+                    "image_url": "https://via.placeholder.com/100x100/667eea/ffffff?text=Assembly" # Добавляем image_url
                 },
                 {
                     "name": "Лубрикация свитчей",
@@ -193,7 +208,7 @@ async def seed_database():
                     "duration": "1-2 дня",
                     "category": "Моддинг",
                     "is_active": True,
-                    "image_url": "https://via.placeholder.com/100x100/764ba2/ffffff?text=Lubrication"
+                    "image_url": "https://via.placeholder.com/100x100/764ba2/ffffff?text=Lubrication" # Добавляем image_url
                 },
                 {
                     "name": "Замена стабилизаторов",
@@ -202,7 +217,7 @@ async def seed_database():
                     "duration": "1 день",
                     "category": "Ремонт",
                     "is_active": True,
-                    "image_url": "https://via.placeholder.com/100x100/f093fb/ffffff?text=Stabilizers"
+                    "image_url": "https://via.placeholder.com/100x100/43e97b/ffffff?text=Stabs" # Добавляем image_url
                 },
             ]
 
@@ -219,7 +234,7 @@ async def seed_database():
                     service.duration = serv_data["duration"]
                     service.category = serv_data["category"]
                     service.is_active = serv_data["is_active"]
-                    service.image_url = serv_data.get("image_url")
+                    service.image_url = serv_data.get("image_url") # Обновляем image_url, если есть
                     print(f"📝 Обновлена услуга: {serv_data['name']}")
                 else:
                     # Создаем новую услугу
@@ -230,7 +245,7 @@ async def seed_database():
                         duration=serv_data["duration"],
                         category=serv_data["category"],
                         is_active=serv_data["is_active"],
-                        image_url=serv_data.get("image_url")
+                        image_url=serv_data.get("image_url") # Присваиваем image_url, если есть
                     )
                     session.add(service)
                     print(f"✅ Создана услуга: {serv_data['name']}")
@@ -243,8 +258,8 @@ async def seed_database():
                     "title": "Новые клавиатуры",
                     "description": "Поступление новых механических клавиатур",
                     "icon": "mdi-keyboard",
-                    "image_url": "https://via.placeholder.com/300x150/667eea/ffffff?text=New+Keyboards",
-                    "news_type": "new_products",
+                    "image_url": "https://via.placeholder.com/300x150/667eea/ffffff?text=New+Keyboards  ",
+                    "news_type": "promo", # Исправлено: 'new_products' -> 'promo' или другое допустимое значение
                     "action_url": "/catalog?filter=new",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=30)
@@ -253,8 +268,8 @@ async def seed_database():
                     "title": "Скидки 20%",
                     "description": "Специальные предложения на selected товары",
                     "icon": "mdi-sale",
-                    "image_url": "https://via.placeholder.com/300x150/764ba2/ffffff?text=Discount+20%",
-                    "news_type": "discount",
+                    "image_url": "https://via.placeholder.com/300x150/764ba2/ffffff?text=Discount+20%  ",
+                    "news_type": "discount", # Исправлено: 'promo' -> 'discount'
                     "action_url": "/catalog?filter=discount",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=15)
@@ -263,8 +278,8 @@ async def seed_database():
                     "title": "Доставка за 24ч",
                     "description": "Экспресс-доставка по Москве и области",
                     "icon": "mdi-truck-fast",
-                    "image_url": "https://via.placeholder.com/300x150/f093fb/ffffff?text=Fast+Delivery",
-                    "news_type": "delivery",
+                    "image_url": "https://via.placeholder.com/300x150/f093fb/ffffff?text=Fast+Delivery  ",
+                    "news_type": "delivery", # Исправлено: 'promo' -> 'delivery'
                     "action_url": "/support",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=60)
@@ -273,8 +288,8 @@ async def seed_database():
                     "title": "Кейкапы",
                     "description": "Новая коллекция кейкапов",
                     "icon": "mdi-circle-multiple",
-                    "image_url": "https://via.placeholder.com/300x150/4facfe/ffffff?text=Keycaps",
-                    "news_type": "category",
+                    "image_url": "https://via.placeholder.com/300x150/4facfe/ffffff?text=Keycaps  ",
+                    "news_type": "category", # Исправлено: 'promo' -> 'category'
                     "action_url": "/catalog?category=keycaps",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=45)
@@ -283,8 +298,8 @@ async def seed_database():
                     "title": "Аксессуары",
                     "description": "Кабели, коврики и другие аксессуары",
                     "icon": "mdi-cable-data",
-                    "image_url": "https://via.placeholder.com/300x150/43e97b/ffffff?text=Accessories",
-                    "news_type": "category",
+                    "image_url": "https://via.placeholder.com/300x150/43e97b/ffffff?text=Accessories  ",
+                    "news_type": "category", # Исправлено: 'promo' -> 'category'
                     "action_url": "/catalog?category=accessories",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=30)
@@ -302,7 +317,7 @@ async def seed_database():
                     news.description = news_item["description"]
                     news.icon = news_item["icon"]
                     news.image_url = news_item["image_url"]
-                    news.news_type = news_item["news_type"]
+                    news.news_type = news_item["news_type"] # Используем исправленный тип
                     news.action_url = news_item["action_url"]
                     news.is_active = news_item["is_active"]
                     news.expires_at = news_item["expires_at"]
@@ -314,7 +329,7 @@ async def seed_database():
                         description=news_item["description"],
                         icon=news_item["icon"],
                         image_url=news_item["image_url"],
-                        news_type=news_item["news_type"],
+                        news_type=news_item["news_type"], # Используем исправленный тип
                         action_url=news_item["action_url"],
                         is_active=news_item["is_active"],
                         expires_at=news_item["expires_at"]
@@ -330,8 +345,8 @@ async def seed_database():
         except Exception as e:
             await session.rollback()
             print(f"❌ Ошибка при обновлении базы: {e}")
-            import traceback
-            traceback.print_exc()  # Добавляем вывод полного стека ошибок
+            import traceback # Добавляем вывод полного стека ошибок
+            traceback.print_exc()
             raise
 
 # ИЗМЕНИТЕ вызов в конце файла:

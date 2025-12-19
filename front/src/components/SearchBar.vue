@@ -47,34 +47,24 @@ export default {
             
             this.searchLoading = true;
             try {
-                const { get, endpoints } = useApi();
+                const { get } = useApi();
                 
-                // Используем правильный эндпоинт поиска
-                const results = await get(endpoints.products.search, {
+                // Используйте simple-search вместо products/search
+                const results = await get('/api/simple-search', {
                     params: {
                         q: this.searchQuery,
                         limit: 50
                     }
                 });
                 
-                // Отправляем результаты в глобальное событие для обработки в CatalogView
+                // Отправляем результаты в глобальное событие
                 this.$root.$emit('search-results', {
                     query: this.searchQuery,
                     results: results
                 });
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
-                let errorMessage = 'Ошибка поиска товаров';
-                
-                if (error.response) {
-                    // Получаем детали ошибки от сервера
-                    const errorData = await error.response.json().catch(() => null);
-                    if (errorData && errorData.detail) {
-                        errorMessage = `Ошибка поиска: ${errorData.detail}`;
-                    }
-                }
-                
-                this.$root.$emit('show-message', errorMessage, 'error');
+                this.$root.$emit('show-message', 'Ошибка поиска товаров', 'error');
             } finally {
                 this.searchLoading = false;
             }

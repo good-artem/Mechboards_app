@@ -523,16 +523,7 @@ export default {
         getFallbackCategories() {
             return [
                 { category_id: 1, name: 'Весь каталог', icon: 'mdi-view-grid' },
-                { category_id: 2, name: 'Скидки', icon: 'mdi-sale' },
-                { category_id: 3, name: 'Механические клавиатуры', icon: 'mdi-keyboard' },
-                { category_id: 4, name: 'БУ клавиатуры', icon: 'mdi-keyboard-return' },
-                { category_id: 5, name: 'Свитчи', icon: 'mdi-circle-multiple' },
-                { category_id: 6, name: 'Кейкапы', icon: 'mdi-checkbox-multiple-blank' },
-                { category_id: 7, name: 'Стабилизаторы', icon: 'mdi-arrow-split-vertical' },
-                { category_id: 8, name: 'Смазка и моддинг', icon: 'mdi-bottle-tonic' },
-                { category_id: 9, name: 'Аксессуары', icon: 'mdi-cable-data' },
-                { category_id: 10, name: 'Другое', icon: 'mdi-dots-horizontal' }
-            ];
+                { category_id: 2, name: 'Проблема с загрузкой', icon: 'mdi-sale' },];
         },
         async onCategorySelected(category) {
             console.log('Selected category:', category.name);
@@ -700,9 +691,14 @@ export default {
         async fetchProductsForSearch(searchQuery) {
             this.loading = true;
             try {
-                const { get, endpoints } = useApi();
-                // Используем стандартный endpoint для поиска
-                const products = await get(`${endpoints.products.search}?q=${encodeURIComponent(searchQuery)}&limit=50`);
+                // Используйте простой поиск вместо products/search
+                const { get } = useApi();
+                const products = await get('/api/simple-search', {
+                    params: {
+                        q: searchQuery,
+                        limit: 50
+                    }
+                });
                 
                 this.products = products;
                 this.allProducts = [...products];
@@ -714,7 +710,6 @@ export default {
                 };
             } catch (error) {
                 console.error('❌ Ошибка поиска:', error);
-                this.products = [];
                 this.showMessage('Ошибка подключения к серверу', 'error');
             } finally {
                 this.loading = false;

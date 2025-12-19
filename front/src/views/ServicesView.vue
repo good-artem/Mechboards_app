@@ -51,10 +51,10 @@
                                                 <v-btn 
                                                     color="primary" 
                                                     variant="tonal"
-                                                    @click="openOrderDialog(service)"
+                                                    @click="openAddToCartDialog(service)"
                                                 >
-                                                    <v-icon left>mdi-plus</v-icon>
-                                                    Заказать
+                                                    <v-icon left>mdi-cart-plus</v-icon>
+                                                    Добавить в корзину
                                                 </v-btn>
                                             </div>
                                             <div v-if="service.duration" class="service-duration mt-2 text-caption text-grey">
@@ -75,12 +75,12 @@
                     <div class="text-body-1 mt-2">Скоро здесь появятся услуги по обслуживанию клавиатур</div>
                 </div>
                 
-                <!-- Диалог заказа услуги -->
-                <v-dialog v-model="orderDialog" max-width="500">
+                <!-- Диалог добавления услуги в корзину -->
+                <v-dialog v-model="addToCartDialog" max-width="500">
                     <v-card>
                         <v-card-title class="pa-4">
-                            <v-icon class="mr-2">mdi-wrench</v-icon>
-                            Заказ услуги: {{ selectedService?.name }}
+                            <v-icon class="mr-2">mdi-cart-plus</v-icon>
+                            Добавить услугу в корзину: {{ selectedService?.name }}
                         </v-card-title>
                         <v-card-text class="pa-4">
                             <div class="service-description mb-4">
@@ -88,29 +88,42 @@
                                 {{ selectedService?.description }}
                             </div>
                             
+                            <div class="mb-3">
+                                <div class="font-weight-medium mb-1">Количество:</div>
+                                <v-text-field
+                                    v-model.number="serviceQuantity"
+                                    type="number"
+                                    min="1"
+                                    variant="outlined"
+                                    density="comfortable"
+                                    hide-details
+                                ></v-text-field>
+                            </div>
+                            
                             <v-textarea
                                 v-model="serviceNotes"
-                                label="Комментарий к заказу"
-                                placeholder="Опишите детали заказа. Например: количество свитчей для смазки, особенности проблемы и т.д."
-                                rows="4"
+                                label="Комментарий к услуге"
+                                placeholder="Опишите детали. Например: количество свитчей для смазки, особенности проблемы и т.д."
+                                rows="3"
                                 auto-grow
                                 variant="outlined"
                                 density="comfortable"
                             ></v-textarea>
                             
-                            <div class="text-h6 font-weight-bold primary--text text-right">
+                            <div class="text-h6 font-weight-bold primary--text text-right mt-3">
                                 Стоимость: {{ formatPrice(selectedService?.price || 0) }}
                             </div>
                         </v-card-text>
                         <v-card-actions class="pa-4">
                             <v-spacer></v-spacer>
-                            <v-btn color="grey" variant="text" @click="orderDialog = false">Отмена</v-btn>
+                            <v-btn color="grey" variant="text" @click="addToCartDialog = false">Отмена</v-btn>
                             <v-btn 
                                 color="primary" 
-                                @click="submitServiceOrder"
-                                :loading="submittingOrder"
+                                @click="addServiceToCart"
+                                :loading="addingToCart"
                             >
-                                Подтвердить заказ
+                                <v-icon left>mdi-cart-plus</v-icon>
+                                Добавить в корзину
                             </v-btn>
                         </v-card-actions>
                     </v-card>
@@ -130,10 +143,11 @@ export default {
         return {
             services: [],
             loading: false,
-            orderDialog: false,
+            addToCartDialog: false,
             selectedService: null,
+            serviceQuantity: 1,
             serviceNotes: '',
-            submittingOrder: false
+            addingToCart: false
         }
     },
     async mounted() {
@@ -208,42 +222,48 @@ export default {
             ];
         },
         
-        openOrderDialog(service) {
+        openAddToCartDialog(service) {
             this.selectedService = service;
+            this.serviceQuantity = 1;
             this.serviceNotes = '';
-            this.orderDialog = true;
+            this.addToCartDialog = true;
         },
         
-        async submitServiceOrder() {
-            this.submittingOrder = true;
+        async addServiceToCart() {
+            this.addingToCart = true;
             try {
                 const { post } = useApi();
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
                 const telegramId = tg_user?.id || 391622124;
                 
-                const result = await post('/api/services/order', {
+                const result = await post('/api/cart/add_service', {
                     telegram_id: telegramId,
                     service_id: this.selectedService.service_id,
+                    quantity: this.serviceQuantity,
                     notes: this.serviceNotes
                 });
                 
-                this.$root.$emit('show-message', `Заказ на услугу "${this.selectedService.name}" успешно создан!`, 'success');
-                this.orderDialog = false;
+                this.$root.$emit('show-message', `Услуга "${this.selectedService.name}" добавлена в корзину!`, 'success');
+                this.$root.$emit('cart-updated');
+                this.addToCartDialog = false;
             } catch (error) {
-                console.error('❌ Ошибка создания заказа:', error);
-                this.$root.$emit('show-message', 'Ошибка создания заказа', 'error');
+                console.error('❌ Ошибка добавления услуги в корзину:', error);
+                this.$root.$emit('show-message', 'Ошибка добавления услуги в корзину', 'error');
             } finally {
-                this.submittingOrder = false;
+                this.addingToCart = false;
             }
         },
         
         openSupportChat() {
-            // Закрываем мини-приложение и открываем чат с ботом
+            // Открываем чат с ботом через ссылку
+            const botUsername = 'your_bot_username'; // Замените на username вашего бота
+            const supportUrl = `https://t.me/${botUsername}`;
+            
             if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.close();
+                window.Telegram.WebApp.openTelegramLink(supportUrl);
             } else {
-                // Для разработки - показываем сообщение
-                alert('Эта кнопка закроет мини-приложение и откроет чат с ботом в Telegram');
+                // Для разработки - открываем в новом окне
+                window.open(supportUrl, '_blank');
             }
         }
     }

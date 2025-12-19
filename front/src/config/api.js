@@ -25,7 +25,8 @@ const API_CONFIG = {
       profile: (userId) => `/api/users/${userId}`,
       create: '/api/users/create',
       stats: (userId) => `/api/users/${userId}/stats`,
-      orders: (userId) => `/api/users/${userId}/orders`
+      orders: (userId) => `/api/users/${userId}/orders`,
+      serviceOrders: (userId) => `/api/users/${userId}/service_orders`
     },
     
     categories: {
