@@ -657,20 +657,17 @@ export default {
         handleSearch(searchQuery) {
             this.searchQuery = searchQuery;
             if (searchQuery.trim()) {
+                // Используем новый эндпоинт поиска
                 this.fetchProductsForSearch(searchQuery);
-<<<<<<< HEAD
-            } else if (this.selectedCategory?.category_id) {
-                this.fetchProducts(this.selectedCategory.category_id);
             } else {
-                this.products = [];
-                this.showProducts = false;
-                this.selectedCategory = null;
-=======
-            } else if (this.selectedCategory) {
-                this.fetchProducts(this.selectedCategory.category_id);
-            } else {
-                this.backToCategories();
->>>>>>> 757174750d78060e497ef2d95a24048a23631ab5
+                // Если поиск очищен, возвращаемся к текущей категории
+                if (this.selectedCategory?.category_id) {
+                    this.fetchProducts(this.selectedCategory.category_id);
+                } else {
+                    this.products = [];
+                    this.showProducts = false;
+                    this.selectedCategory = null;
+                }
             }
         },
         
@@ -685,31 +682,25 @@ export default {
         async fetchProductsForSearch(searchQuery) {
             this.loading = true;
             try {
-                const baseUrl = this.getApiBaseUrl();
-                const apiUrl = `${baseUrl}/api/products/search?q=${encodeURIComponent(searchQuery)}`;
+                const { get, endpoints } = useApi();
+                const results = await get(`${endpoints.products.search}?q=${encodeURIComponent(searchQuery)}&limit=50`);
                 
-                const response = await fetch(apiUrl);
+                this.products = results;
+                this.allProducts = [...results];
                 
-                if (response.ok) {
-                    const products = await response.json();
-                    this.products = products;
-                    this.allProducts = [...products];
-                    
-                    // Показываем товары
-                    this.showProducts = true;
-                    this.selectedCategory = { 
-                        name: `Результаты поиска: "${searchQuery}"`,
-                        category_id: null 
-                    };
-                } else {
-                    console.error('❌ Ошибка поиска товаров:', response.status);
-                    this.products = [];
-                    this.showMessage('Товары не найдены', 'warning');
-                }
+                // Показываем товары
+                this.showProducts = true;
+                this.selectedCategory = { 
+                    name: `Результаты поиска: "${searchQuery}"`,
+                    category_id: null 
+                };
+                
+                console.log('🔍 Результаты поиска:', results);
+                
             } catch (error) {
-                console.error('❌ Ошибка сети:', error);
+                console.error('❌ Ошибка поиска:', error);
                 this.products = [];
-                this.showMessage('Ошибка подключения к серверу', 'error');
+                this.showMessage('Товары не найдены', 'warning');
             }
             this.loading = false;
         },

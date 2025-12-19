@@ -1,3 +1,4 @@
+main.py
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.responses import JSONResponse
@@ -175,6 +176,7 @@ async def auth_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return JSONResponse(
             status_code=200,
+            content={"status": "ok"},  # Добавлен content
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
@@ -195,26 +197,34 @@ async def auth_middleware(request: Request, call_next):
         '/api/test',
         '/api/test-images',
         '/api/test/no-auth',
+        '/api/debug/headers',
+        '/api/user/',  # Добавлено для публичного доступа к пользователям
+        '/api/users/',  # Добавлено
         '/assets',
         '/docs',
         '/openapi.json',
-        '/api/debug/headers',
     ]
     
     # Проверяем, публичный ли эндпоинт
     is_public = any(request.url.path.startswith(path) for path in public_paths)
     
     if is_public:
-        response = await call_next(request)
-        return response
+        # Для публичных эндпоинтов пропускаем проверку авторизации
+        try:
+            response = await call_next(request)
+            return response
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"detail": f"Ошибка сервера: {str(e)}"}
+            )
     
     # Для защищенных эндпоинтов проверяем авторизацию
     init_data = request.headers.get('x-telegram-init-data')
     
-    # Для тестирования: если нет заголовка, разрешаем доступ (но в реальном приложении уберите это)
     if not init_data:
         print(f"⚠️ No Telegram auth header for protected endpoint: {request.url.path}")
-        # В реальном приложении раскомментируйте:
+        # Для тестирования - пропускаем запрос (в продакшене раскомментировать)
         # return JSONResponse(
         #     status_code=401,
         #     content={"detail": "Требуется авторизация Telegram"},
@@ -223,7 +233,6 @@ async def auth_middleware(request: Request, call_next):
         #         "Access-Control-Expose-Headers": "*"
         #     }
         # )
-        # Для тестирования - пропускаем запрос
         response = await call_next(request)
         return response
     
@@ -231,18 +240,14 @@ async def auth_middleware(request: Request, call_next):
         # Проверяем подпись Telegram
         if not verify_telegram_hash(init_data):
             print(f"⚠️ Invalid Telegram hash for: {request.url.path}")
-            # В реальном приложении раскомментируйте:
-            # return JSONResponse(
-            #     status_code=401,
-            #     content={"detail": "Невалидная авторизация Telegram"},
-            #     headers={
-            #         "Access-Control-Allow-Origin": "*",
-            #         "Access-Control-Expose-Headers": "*"
-            #     }
-            # )
-            # Для тестирования - пропускаем запрос
-            response = await call_next(request)
-            return response
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Невалидная авторизация Telegram"},
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Expose-Headers": "*"
+                }
+            )
             
         # Проверяем пользователя
         user_data = get_telegram_user_from_init_data(init_data)
@@ -821,6 +826,7 @@ async def get_current_user_data(request: Request):
             }, 
             "telegram_user": telegram_user
         }
+    
 @app.get("/api/debug/headers")
 async def debug_headers(request: Request):
     """Debug endpoint для проверки заголовков"""

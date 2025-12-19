@@ -49,13 +49,6 @@
 </template>
 
 <script>
-<<<<<<< HEAD
-=======
-
-import '@/assets/styles/components/search-bar.css'
-import { useApi } from '@/composables/useApi'
-
->>>>>>> 757174750d78060e497ef2d95a24048a23631ab5
 export default {
     name: "SearchBar",
     data() {
@@ -96,7 +89,6 @@ export default {
             this.searchLoading = true;
             
             try {
-<<<<<<< HEAD
                 // Используем эндпоинт поиска
                 const baseUrl = this.getApiBaseUrl();
                 const apiUrl = `${baseUrl}/api/products/search?q=${encodeURIComponent(this.searchQuery)}&limit=5`;
@@ -117,25 +109,6 @@ export default {
             } catch (error) {
                 console.error('Ошибка поиска:', error);
                 this.searchResults = [];
-=======
-                const { get, endpoints } = useApi();
-                
-                // Правильный вызов search endpoint
-                const results = await get(`${endpoints.products.search}?q=${encodeURIComponent(this.searchQuery)}&limit=10`);
-                
-                this.searchResults = results;
-                this.showResults = true;
-                
-                // Эмитим событие для родительского компонента CatalogView
-                this.$emit('search', this.searchQuery);
-            } catch (error) {
-                console.error('Ошибка поиска:', error);
-                this.searchResults = [];
-                // Используем метод showMessage если он доступен
-                if (this.$parent && this.$parent.showMessage) {
-                    this.$parent.showMessage('Ошибка поиска товаров', 'error');
-                }
->>>>>>> 757174750d78060e497ef2d95a24048a23631ab5
             } finally {
                 this.searchLoading = false;
             }
