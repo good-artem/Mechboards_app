@@ -658,12 +658,19 @@ export default {
             this.searchQuery = searchQuery;
             if (searchQuery.trim()) {
                 this.fetchProductsForSearch(searchQuery);
+<<<<<<< HEAD
             } else if (this.selectedCategory?.category_id) {
                 this.fetchProducts(this.selectedCategory.category_id);
             } else {
                 this.products = [];
                 this.showProducts = false;
                 this.selectedCategory = null;
+=======
+            } else if (this.selectedCategory) {
+                this.fetchProducts(this.selectedCategory.category_id);
+            } else {
+                this.backToCategories();
+>>>>>>> 757174750d78060e497ef2d95a24048a23631ab5
             }
         },
         
