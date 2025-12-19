@@ -117,6 +117,24 @@
             </v-col>
         </v-row>
     </v-container>
+
+    <v-card-actions class="profile-actions pa-4">
+        <v-btn 
+            v-if="isAdmin" 
+            @click="goToAdmin"
+            color="secondary" 
+            variant="outlined"
+            class="admin-btn"
+            block
+        >
+            <v-icon left>mdi-shield-account</v-icon>
+            Админ панель
+        </v-btn>
+        <v-btn @click="testConnection" color="primary" variant="outlined" :loading="testing" block>
+            <v-icon left>mdi-connection</v-icon>
+            Проверить подключение
+        </v-btn>
+    </v-card-actions>
 </template>
 
 <script>
@@ -142,14 +160,32 @@ export default {
             loading: false,
             testing: false,
             testResult: null,
-            debugInfo: null
+            debugInfo: null,
+            isAdmin: false,
+            adminUrl: 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev/admin'
         }
     },
     async mounted() {
         console.log('🔍 ProfileView mounted');
         await this.initializeProfile();
+        await this.checkAdminStatus();
     },
     methods: {
+        async checkAdminStatus() {
+            try {
+                const { get } = useApi();
+                const result = await get('/api/admin/check');
+                this.isAdmin = result.is_admin;
+            } catch (error) {
+                console.error('❌ Ошибка проверки прав администратора:', error);
+                this.isAdmin = false;
+            }
+        },
+        
+        goToAdmin() {
+            // Открываем админку в новом окне или переходим по роуту
+            window.Telegram.WebApp.openLink(this.adminUrl);
+        },
         async initializeProfile() {
             console.log('🔍 Initializing profile...');
             
@@ -393,5 +429,8 @@ export default {
 .test-card {
     background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
     border-radius: 12px;
+}
+.admin-btn {
+    margin-bottom: 8px;
 }
 </style>

@@ -4,8 +4,8 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News
-from sqlalchemy import select
+from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News, Service, ServiceOrder, OrderStatus
+from sqlalchemy import select, func, text
 from typing import List, Optional
 import uuid
 from datetime import datetime
@@ -15,7 +15,7 @@ import hmac
 import json
 from urllib.parse import parse_qsl
 from sqlalchemy.orm import selectinload
-
+from fastapi import Query
 
 # Получаем токен бота из переменных окружения
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
@@ -29,37 +29,30 @@ def verify_telegram_hash(init_data: str) -> bool:
         # Парсим query string
         parsed_data = dict(parse_qsl(init_data))
         received_hash = parsed_data.get('hash')
-
         if not received_hash:
             return False
-
         # 1. УДАЛЯЕМ из проверки только поле 'hash'
         data_check_list = []
         for key, value in sorted(parsed_data.items()):
             if key == 'hash':
                 continue  # Исключаем hash из расчета
             data_check_list.append(f"{key}={value}")
-
         # 2. Формируем строку для проверки
         data_check_string = "\n".join(data_check_list)
-
         # 3. Вычисляем секретный ключ (HMAC-SHA256)
         secret_key = hmac.new(
             key=b"WebAppData",
             msg=BOT_TOKEN.encode(),
             digestmod=hashlib.sha256
         ).digest()
-
         # 4. Вычисляем хэш и сравниваем
         calculated_hash = hmac.new(
             key=secret_key,
             msg=data_check_string.encode(),
             digestmod=hashlib.sha256
         ).hexdigest()
-
         # Безопасное сравнение хэшей
         return hmac.compare_digest(received_hash, calculated_hash)
-
     except Exception as e:
         print(f"❌ Ошибка верификации Telegram hash: {e}")
         return False
@@ -71,10 +64,8 @@ def get_telegram_user_from_init_data(init_data: str):
     try:
         parsed_data = dict(parse_qsl(init_data))
         user_str = parsed_data.get('user')
-        
         if not user_str:
             return None
-        
         user_data = json.loads(user_str)
         return user_data
     except Exception:
@@ -87,25 +78,22 @@ def verify_user_access(telegram_id: int, init_data: str):
     # Проверяем хэш Telegram
     if not verify_telegram_hash(init_data):
         raise HTTPException(
-            status_code=401, 
+            status_code=401,
             detail="Невалидная авторизация Telegram"
         )
-    
     # Получаем пользователя из initData
     user_data = get_telegram_user_from_init_data(init_data)
     if not user_data:
         raise HTTPException(
-            status_code=401, 
+            status_code=401,
             detail="Данные пользователя не найдены"
         )
-    
     # Проверяем, что пользователь запрашивает СВОИ данные
     if user_data.get('id') != telegram_id:
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Доступ запрещен. Вы можете запрашивать только свои данные"
         )
-    
     return user_data
 
 # Pydantic модели для запросов
@@ -139,155 +127,15 @@ async def lifespan(app_: FastAPI):
     yield
 
 app = FastAPI(title="Mechboards shop", lifespan=lifespan)
-
 app.mount("/assets", StaticFiles(directory="../front/src/assets"), name="assets")
 
-# Простой CORS middleware для тестирования
-@app.middleware("http")
-async def cors_middleware(request: Request, call_next):
-    # Всегда добавляем CORS заголовки
-    if request.method == "OPTIONS":
-        return JSONResponse(
-            status_code=200,
-            content={"status": "ok"},
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Expose-Headers": "*",
-            }
-        )
-    
-    response = await call_next(request)
-    
-    # Добавляем CORS заголовки
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Expose-Headers"] = "*"
-    
-    return response
-
-# Добавьте этот middleware после простого CORS middleware
-@app.middleware("http")
-async def auth_middleware(request: Request, call_next):
-    # Пропускаем OPTIONS запросы и публичные эндпоинты
-    if request.method == "OPTIONS":
-        return JSONResponse(
-            status_code=200,
-            content={"status": "ok"},
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Expose-Headers": "*",
-            }
-        )
-    
-    # Список публичных эндпоинтов
-    public_paths = [
-        '/api/categories',
-        '/api/products',
-        '/api/news',
-        '/api/health',
-        '/api/products/search',
-        '/api/search',
-        '/api/test-search',
-        '/api/test',
-        '/api/test-images',
-        '/api/test/no-auth',
-        '/api/debug/headers',
-        '/api/user/',  # Публичные эндпоинты пользователей
-        '/api/users/',  # Публичные эндпоинты пользователей
-        '/api/cart/',   # ДОБАВЛЕНО: эндпоинты корзины тоже публичные для тестирования
-        '/assets',
-        '/docs',
-        '/openapi.json',
-    ]
-    
-    # Проверяем, публичный ли эндпоинт
-    is_public = any(request.url.path.startswith(path) for path in public_paths)
-    
-    if is_public:
-        # Для публичных эндпоинтов пропускаем проверку авторизации
-        try:
-            response = await call_next(request)
-            return response
-        except Exception as e:
-            return JSONResponse(
-                status_code=500,
-                content={"detail": f"Ошибка сервера: {str(e)}"}
-            )
-    
-    # Для защищенных эндпоинтов проверяем авторизацию
-    init_data = request.headers.get('x-telegram-init-data')
-    
-    if not init_data:
-        print(f"⚠️ No Telegram auth header for protected endpoint: {request.url.path}")
-        # Для тестирования - пропускаем запрос (в продакшене раскомментировать)
-        # return JSONResponse(
-        #     status_code=401,
-        #     content={"detail": "Требуется авторизация Telegram"},
-        #     headers={
-        #         "Access-Control-Allow-Origin": "*",
-        #         "Access-Control-Expose-Headers": "*"
-        #     }
-        # )
-        response = await call_next(request)
-        return response
-    
-    try:
-        # Проверяем подпись Telegram
-        if not verify_telegram_hash(init_data):
-            print(f"⚠️ Invalid Telegram hash for: {request.url.path}")
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Невалидная авторизация Telegram"},
-                headers={
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Expose-Headers": "*"
-                }
-            )
-            
-        # Проверяем пользователя
-        user_data = get_telegram_user_from_init_data(init_data)
-        if not user_data:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Не удалось получить данные пользователя"},
-                headers={
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Expose-Headers": "*"
-                }
-            )
-        
-        # Добавляем данные пользователя в request state
-        request.state.telegram_user = user_data
-        
-        response = await call_next(request)
-        return response
-        
-    except Exception as e:
-        print(f"❌ Auth middleware error: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"Ошибка сервера: {str(e)}"},
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Expose-Headers": "*"
-            }
-        )
-
-# Зависимость для получения telegram_id из пути
-async def get_current_user(telegram_id: int, x_telegram_init_data: str = Header(None)):
-    return verify_user_access(telegram_id, x_telegram_init_data)
-
-# Зависимость для проверки телеграм ID в теле запроса
-async def verify_body_telegram_id(data: dict, x_telegram_init_data: str = Header(None)):
-    telegram_id = data.get('telegram_id')
-    if not telegram_id:
-        raise HTTPException(status_code=400, detail="telegram_id is required")
-    return verify_user_access(telegram_id, x_telegram_init_data)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Публичные эндпоинты (не требуют авторизации)
 @app.get("/api/categories")
@@ -306,7 +154,6 @@ async def get_products(category_id: Optional[int] = None, limit: int = 20, offse
         query = query.limit(limit).offset(offset)
         result = await session.execute(query)
         products = result.scalars().all()
-        
         # Преобразуем для фронтенда
         result_products = []
         for product in products:
@@ -318,7 +165,7 @@ async def get_products(category_id: Optional[int] = None, limit: int = 20, offse
                 "stock_quantity": product.stock_quantity,
                 "category_id": product.category_id,
                 "is_available": product.is_available,
-                "images": product.images
+                "images": json.loads(product.images) if product.images else []
             }
             if product.category:
                 product_dict["category"] = {
@@ -328,7 +175,6 @@ async def get_products(category_id: Optional[int] = None, limit: int = 20, offse
                     "icon": product.category.icon
                 }
             result_products.append(product_dict)
-        
         return result_products
 
 @app.get("/api/products/{product_id}")
@@ -338,7 +184,16 @@ async def get_product(product_id: int):
         product = result.scalar_one_or_none()
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
-        return product
+        return {
+            "product_id": product.product_id,
+            "name": product.name,
+            "description": product.description,
+            "price": float(product.price),
+            "stock_quantity": product.stock_quantity,
+            "category_id": product.category_id,
+            "is_available": product.is_available,
+            "images": json.loads(product.images) if product.images else []
+        }
 
 @app.get("/api/news")
 async def get_news():
@@ -351,54 +206,77 @@ async def get_news():
             ).order_by(News.created_at.desc())
         )
         news_items = result.scalars().all()
-        return news_items
+        return [{
+            "news_id": item.news_id,
+            "title": item.title,
+            "description": item.description,
+            "icon": item.icon,
+            "image_url": item.image_url,
+            "news_type": item.news_type,
+            "action_url": item.action_url,
+            "is_active": item.is_active,
+            "created_at": item.created_at.isoformat(),
+            "expires_at": item.expires_at.isoformat() if item.expires_at else None
+        } for item in news_items]
 
 @app.get("/api/products/search")
-async def search_products(q: str = "", category_id: Optional[int] = None, limit: int = 20, offset: int = 0):
+async def search_products(
+    q: str = "",
+    category_id: Optional[int] = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0)
+):
     async with async_session() as session:
-        query = select(Product).where(
-            Product.is_available == True
-        ).options(selectinload(Product.category))
-        
-        if q:
-            query = query.where(Product.name.ilike(f"%{q}%"))
-        
-        if category_id:
-            query = query.where(Product.category_id == category_id)
+        try:
+            query = select(Product).where(
+                Product.is_available == True
+            ).options(selectinload(Product.category))
             
-        query = query.limit(limit).offset(offset)
-        
-        result = await session.execute(query)
-        products = result.scalars().all()
-        
-        # Преобразуем для фронтенда
-        result_products = []
-        for product in products:
-            product_dict = {
-                "product_id": product.product_id,
-                "name": product.name,
-                "description": product.description,
-                "price": float(product.price),
-                "stock_quantity": product.stock_quantity,
-                "category_id": product.category_id,
-                "is_available": product.is_available,
-                "images": product.images
-            }
-            if product.category:
-                product_dict["category"] = {
-                    "category_id": product.category.category_id,
-                    "name": product.category.name,
-                    "description": product.category.description,
-                    "icon": product.category.icon
+            # Поиск по названию, только если есть запрос
+            if q and q.strip():
+                query = query.where(Product.name.ilike(f"%{q.strip()}%"))
+            
+            # Фильтр по категории
+            if category_id is not None:
+                query = query.where(Product.category_id == category_id)
+            
+            query = query.limit(limit).offset(offset)
+            result = await session.execute(query)
+            products = result.scalars().all()
+            
+            # Преобразуем для фронтенда
+            result_products = []
+            for product in products:
+                product_dict = {
+                    "product_id": product.product_id,
+                    "name": product.name,
+                    "description": product.description,
+                    "price": float(product.price),
+                    "stock_quantity": product.stock_quantity,
+                    "category_id": product.category_id,
+                    "is_available": product.is_available,
+                    "images": json.loads(product.images) if product.images else []
                 }
-            result_products.append(product_dict)
-        
-        return result_products
+                if product.category:
+                    product_dict["category"] = {
+                        "category_id": product.category.category_id,
+                        "name": product.category.name,
+                        "description": product.category.description,
+                        "icon": product.category.icon
+                    }
+                result_products.append(product_dict)
+            
+            return result_products
+        except ValueError as ve:
+            print(f"❌ Search validation error: {ve}")
+            raise HTTPException(status_code=400, detail="Invalid parameter format")
+        except Exception as e:
+            print(f"❌ Search error: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-# Публичные эндпоинты пользователя (для тестирования)
+# Добавляем автоматическое создание пользователя при запросе
 @app.get("/api/user/{telegram_id}")
-async def get_user_public(telegram_id: int, request: Request):
-    """Публичный эндпоинт для получения пользователя"""
+async def get_user(telegram_id: int, request: Request):
     async with async_session() as session:
         result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
@@ -406,10 +284,9 @@ async def get_user_public(telegram_id: int, request: Request):
         user = result.scalar_one_or_none()
         
         if not user:
-            # Проверяем, есть ли данные пользователя в запросе
-            telegram_user = getattr(request.state, 'telegram_user', None)
+            # Создаем пользователя автоматически
+            telegram_user = get_telegram_user_from_init_data(request.headers.get('x-telegram-init-data', ''))
             if telegram_user and telegram_user.get('id') == telegram_id:
-                # Создаем пользователя если не существует
                 user = User(
                     telegram_id=telegram_id,
                     username=telegram_user.get('username'),
@@ -422,86 +299,27 @@ async def get_user_public(telegram_id: int, request: Request):
             else:
                 raise HTTPException(status_code=404, detail="User not found")
         
-        return user
-
-@app.get("/api/user/{telegram_id}/stats")
-async def get_user_stats_public(telegram_id: int):
-    """Публичный эндпоинт для статистики пользователя"""
-    async with async_session() as session:
-        user_result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = user_result.scalar_one_or_none()
-        
-        if not user:
-            return {"total_orders": 0, "completed_orders": 0}
-        
-        orders_result = await session.execute(
-            select(Order).where(Order.user_id == user.user_id)
-        )
-        orders = orders_result.scalars().all()
-        
-        completed_orders = [order for order in orders if order.status.value == "Доставлен"]
-        
         return {
-            "total_orders": len(orders),
-            "completed_orders": len(completed_orders)
+            "user_id": user.user_id,
+            "telegram_id": user.telegram_id,
+            "username": user.username,
+            "name": user.name,
+            "phone": user.phone,
+            "email": user.email,
+            "address": user.address,
+            "created_at": user.created_at.isoformat(),
+            "is_active": user.is_active,
+            "is_admin": user.is_admin
         }
 
-# Защищенные эндпоинты (требуют авторизации) - временно тоже публичные для тестирования
-@app.get("/api/users/{telegram_id}")
-async def get_user(
-    telegram_id: int
-):
-    async with async_session() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        return user
-
-@app.post("/api/users/create")
-async def create_user(
-    request: CreateUserRequest
-):
-    async with async_session() as session:
-        # Проверяем, существует ли пользователь
-        result = await session.execute(
-            select(User).where(User.telegram_id == request.telegram_id)
-        )
-        existing_user = result.scalar_one_or_none()
-        
-        if existing_user:
-            return existing_user
-        
-        # Создаем нового пользователя
-        user = User(
-            telegram_id=request.telegram_id,
-            username=request.username,
-            name=request.name,
-            is_active=True
-        )
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-        
-        return user
-
 @app.get("/api/users/{telegram_id}/stats")
-async def get_user_stats(
-    telegram_id: int
-):
+async def get_user_stats(telegram_id: int):
     async with async_session() as session:
         # Находим пользователя
         user_result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
         )
         user = user_result.scalar_one_or_none()
-        
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -512,7 +330,7 @@ async def get_user_stats(
         orders = orders_result.scalars().all()
         
         # Считаем завершенные заказы
-        completed_orders = [order for order in orders if order.status.value == "Доставлен"]
+        completed_orders = [order for order in orders if order.status == OrderStatus.DELIVERED]
         
         return {
             "total_orders": len(orders),
@@ -520,18 +338,14 @@ async def get_user_stats(
         }
 
 @app.post("/api/cart/add")
-async def add_to_cart(
-    request: AddToCartRequest
-):
+async def add_to_cart(request: AddToCartRequest):
     async with async_session() as session:
-        # Находим пользователя
+        # Находим или создаем пользователя
         user_result = await session.execute(
             select(User).where(User.telegram_id == request.telegram_id)
         )
         user = user_result.scalar_one_or_none()
-        
         if not user:
-            # Создаем пользователя если не существует
             user = User(
                 telegram_id=request.telegram_id,
                 username=f"user_{request.telegram_id}",
@@ -547,12 +361,19 @@ async def add_to_cart(
             select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
-        
         if not cart:
             cart = Cart(user_id=user.user_id)
             session.add(cart)
             await session.commit()
             await session.refresh(cart)
+        
+        # Проверяем существование товара
+        product_result = await session.execute(
+            select(Product).where(Product.product_id == request.product_id)
+        )
+        product = product_result.scalar_one_or_none()
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
         
         # Проверяем, есть ли уже такой товар в корзине
         existing_item_result = await session.execute(
@@ -564,38 +385,36 @@ async def add_to_cart(
         existing_item = existing_item_result.scalar_one_or_none()
         
         if existing_item:
-            # Обновляем количество
-            existing_item.quantity += request.quantity
+            # Обновляем количество, но не превышая доступное количество
+            new_quantity = existing_item.quantity + request.quantity
+            if product.stock_quantity and new_quantity > product.stock_quantity:
+                new_quantity = product.stock_quantity
+            existing_item.quantity = new_quantity
+            message = f"Количество обновлено: {new_quantity} шт."
         else:
             # Добавляем новый товар в корзину
             cart_item = CartItem(
                 cart_id=cart.cart_id,
                 product_id=request.product_id,
-                quantity=request.quantity
+                quantity=min(request.quantity, product.stock_quantity or 1)
             )
             session.add(cart_item)
+            message = "Товар добавлен в корзину"
         
         await session.commit()
-        
-        return {"status": "success", "message": "Product added to cart"}
+        return {"status": "success", "message": message}
 
-# main.py - исправленный эндпоинт корзины
 @app.get("/api/cart/{telegram_id}")
-async def get_cart(
-    telegram_id: int
-):
-    # Для тестирования временно отключаем проверку
-    # user_data = verify_user_access(telegram_id, x_telegram_init_data)
-    
+async def get_cart(telegram_id: int):
+    print(f"🔄 Запрос корзины для {telegram_id}")
     async with async_session() as session:
-        # Находим или создаем пользователя
+        # Находим пользователя
         user_result = await session.execute(
             select(User).where(User.telegram_id == telegram_id)
         )
         user = user_result.scalar_one_or_none()
-        
         if not user:
-            # Создаем нового пользователя
+            # Создаем пользователя если не существует
             user = User(
                 telegram_id=telegram_id,
                 username=f"user_{telegram_id}",
@@ -606,41 +425,47 @@ async def get_cart(
             await session.commit()
             await session.refresh(user)
         
-        # Находим или создаем корзину
+        # Находим корзину пользователя
         cart_result = await session.execute(
             select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
-        
         if not cart:
+            # Создаем корзину если не существует
             cart = Cart(user_id=user.user_id)
             session.add(cart)
             await session.commit()
             await session.refresh(cart)
-            return {"items": [], "total": 0}
         
-        # Получаем товары в корзине
+        # Получаем товары в корзине с информацией о продуктах
         cart_items_result = await session.execute(
-            select(CartItem).where(CartItem.cart_id == cart.cart_id)
+            select(CartItem)
+            .where(CartItem.cart_id == cart.cart_id)
+            .options(selectinload(CartItem.product))
         )
         cart_items = cart_items_result.scalars().all()
         
         items = []
         total = 0
-        
         for item in cart_items:
-            product_result = await session.execute(
-                select(Product).where(Product.product_id == item.product_id)
-            )
-            product = product_result.scalar_one()
-            
-            items.append({
-                "cart_item_id": item.cart_item_id,
-                "product": product,
-                "quantity": item.quantity,
-                "subtotal": float(product.price) * item.quantity
-            })
-            total += float(product.price) * item.quantity
+            if item.product:
+                subtotal = float(item.product.price) * item.quantity
+                items.append({
+                    "cart_item_id": item.cart_item_id,
+                    "product": {
+                        "product_id": item.product.product_id,
+                        "name": item.product.name,
+                        "description": item.product.description,
+                        "price": float(item.product.price),
+                        "stock_quantity": item.product.stock_quantity,
+                        "category_id": item.product.category_id,
+                        "is_available": item.product.is_available,
+                        "images": json.loads(item.product.images) if item.product.images else []
+                    },
+                    "quantity": item.quantity,
+                    "subtotal": subtotal
+                })
+                total += subtotal
         
         return {"items": items, "total": total}
 
@@ -654,23 +479,12 @@ async def update_cart_item(
             select(CartItem).where(CartItem.cart_item_id == request.cart_item_id)
         )
         cart_item = result.scalar_one_or_none()
-        
         if not cart_item:
             raise HTTPException(status_code=404, detail="Cart item not found")
-        
-        # Находим корзину
-        cart_result = await session.execute(
-            select(Cart).where(Cart.cart_id == cart_item.cart_id)
-        )
-        cart = cart_result.scalar_one_or_none()
-        
-        if not cart:
-            raise HTTPException(status_code=404, detail="Cart not found")
         
         # Обновляем количество
         cart_item.quantity = request.quantity
         await session.commit()
-        
         return {"status": "success", "message": "Cart updated"}
 
 @app.delete("/api/cart/remove")
@@ -683,14 +497,12 @@ async def remove_cart_item(
             select(CartItem).where(CartItem.cart_item_id == request.cart_item_id)
         )
         cart_item = result.scalar_one_or_none()
-        
         if not cart_item:
             raise HTTPException(status_code=404, detail="Cart item not found")
         
         # Удаляем элемент корзины
         await session.delete(cart_item)
         await session.commit()
-        
         return {"status": "success", "message": "Item removed from cart"}
 
 @app.post("/api/orders/create")
@@ -698,20 +510,19 @@ async def create_order(
     request: CreateOrderRequest
 ):
     async with async_session() as session:
-        # Находим пользователя и его корзину
+        # Находим пользователя
         user_result = await session.execute(
             select(User).where(User.telegram_id == request.telegram_id)
         )
         user = user_result.scalar_one_or_none()
-        
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
+        # Находим корзину
         cart_result = await session.execute(
             select(Cart).where(Cart.user_id == user.user_id)
         )
         cart = cart_result.scalar_one_or_none()
-        
         if not cart:
             raise HTTPException(status_code=400, detail="Cart is empty")
         
@@ -720,7 +531,6 @@ async def create_order(
             select(CartItem).where(CartItem.cart_id == cart.cart_id)
         )
         cart_items = cart_items_result.scalars().all()
-        
         if not cart_items:
             raise HTTPException(status_code=400, detail="Cart is empty")
         
@@ -735,14 +545,14 @@ async def create_order(
         
         # Создаем заказ
         order_number = f"ORDER-{uuid.uuid4().hex[:8].upper()}"
-        
         order = Order(
             user_id=user.user_id,
             order_number=order_number,
             total_amount=total_amount,
             shipping_method=request.shipping_method,
             shipping_address=request.shipping_address,
-            customer_notes=request.customer_notes
+            customer_notes=request.customer_notes,
+            status=OrderStatus.CREATED
         )
         session.add(order)
         await session.commit()
@@ -754,12 +564,11 @@ async def create_order(
                 select(Product).where(Product.product_id == item.product_id)
             )
             product = product_result.scalar_one()
-            
             order_item = OrderItem(
                 order_id=order.order_id,
                 product_id=item.product_id,
                 quantity=item.quantity,
-                unit_price=product.price,
+                unit_price=float(product.price),
                 total_price=float(product.price) * item.quantity
             )
             session.add(order_item)
@@ -768,181 +577,180 @@ async def create_order(
         await session.execute(
             CartItem.__table__.delete().where(CartItem.cart_id == cart.cart_id)
         )
-        
         await session.commit()
         
-        return {"status": "success", "order_number": order_number, "order_id": order.order_id}
+        return {
+            "status": "success",
+            "order_number": order_number,
+            "order_id": order.order_id,
+            "total_amount": float(total_amount)
+        }
 
-# Health check endpoint
+@app.get("/api/services")
+async def get_services():
+    async with async_session() as session:
+        try:
+            # Сначала проверяем, существует ли колонка image_url
+            result = await session.execute(text("PRAGMA table_info(services)"))
+            columns = [row[1] for row in result.fetchall()]
+            
+            if 'image_url' in columns:
+                # Если колонка есть, используем её
+                result = await session.execute(
+                    select(Service).where(Service.is_active == True)
+                )
+                services = result.scalars().all()
+                return [{
+                    "service_id": s.service_id,
+                    "name": s.name,
+                    "description": s.description,
+                    "price": float(s.price),
+                    "duration": s.duration,
+                    "category": s.category,
+                    "image_url": s.image_url or "https://via.placeholder.com/100x100/667eea/ffffff?text=Service"
+                } for s in services]
+            else:
+                # Если колонки нет, не включаем её в результат
+                result = await session.execute(
+                    select(Service).where(Service.is_active == True)
+                )
+                services = result.scalars().all()
+                return [{
+                    "service_id": s.service_id,
+                    "name": s.name,
+                    "description": s.description,
+                    "price": float(s.price),
+                    "duration": s.duration,
+                    "category": s.category,
+                    "image_url": "https://via.placeholder.com/100x100/667eea/ffffff?text=Service"
+                } for s in services]
+        except Exception as e:
+            print(f"❌ Ошибка получения услуг: {e}")
+            raise HTTPException(status_code=500, detail="Ошибка получения услуг")
+
+@app.post("/api/services/order")
+async def order_service(
+    telegram_id: int,
+    service_id: int,
+    notes: Optional[str] = None
+):
+    async with async_session() as session:
+        # Находим пользователя
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            user = User(
+                telegram_id=telegram_id,
+                username=f"user_{telegram_id}",
+                name=f"User {telegram_id}",
+                is_active=True
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+        
+        # Находим услугу
+        service_result = await session.execute(
+            select(Service).where(Service.service_id == service_id)
+        )
+        service = service_result.scalar_one_or_none()
+        if not service:
+            raise HTTPException(status_code=404, detail="Service not found")
+        
+        # Создаем заказ на услугу
+        service_order = ServiceOrder(
+            user_id=user.user_id,
+            service_id=service.service_id,
+            notes=notes,
+            price=float(service.price),
+            status=OrderStatus.CREATED
+        )
+        session.add(service_order)
+        await session.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Заказ на услугу '{service.name}' принят",
+            "order_id": service_order.service_order_id
+        }
+
+@app.get("/api/users/{telegram_id}/orders")
+async def get_user_orders(telegram_id: int):
+    """Получить актуальные заказы пользователя (не выполненные)"""
+    async with async_session() as session:
+        # Находим пользователя
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Получаем заказы, которые не доставлены
+        orders_result = await session.execute(
+            select(Order)
+            .where(Order.user_id == user.user_id)
+            .where(Order.status != OrderStatus.DELIVERED)
+            .options(selectinload(Order.order_items).selectinload(OrderItem.product))
+            .order_by(Order.created_at.desc())
+        )
+        orders = orders_result.scalars().all()
+        
+        # Формируем ответ
+        result_orders = []
+        for order in orders:
+            total = sum(float(item.total_price) for item in order.order_items)
+            result_orders.append({
+                "order_id": order.order_id,
+                "order_number": order.order_number,
+                "total_amount": float(total),
+                "status": order.status.value,
+                "created_at": order.created_at.isoformat(),
+                "items": [{
+                    "product_id": item.product.product_id,
+                    "name": item.product.name,
+                    "quantity": item.quantity,
+                    "price": float(item.unit_price),
+                    "subtotal": float(item.total_price)
+                } for item in order.order_items]
+            })
+        
+        return result_orders
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "message": "API is working"}
 
-@app.get("/api/telegram-test")
-async def telegram_test(x_telegram_init_data: str = Header(None)):
-    """Тестовый endpoint для проверки Telegram авторизации"""
-    if not x_telegram_init_data:
-        return {"status": "error", "message": "No Telegram init data"}
-    
-    if not verify_telegram_hash(x_telegram_init_data):
-        return {"status": "error", "message": "Invalid Telegram hash"}
-    
-    user_data = get_telegram_user_from_init_data(x_telegram_init_data)
-    return {
-        "status": "success", 
-        "message": "Telegram auth OK",
-        "user": user_data
-    }
-
-# Также добавьте endpoint для получения текущего пользователя
-@app.get("/api/me")
-async def get_current_user_data(request: Request):
-    """Получить данные текущего пользователя (требует авторизации)"""
-    telegram_user = getattr(request.state, 'telegram_user', None)
-    if not telegram_user:
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    
+@app.get("/api/simple-search")
+async def simple_search(q: str = "", limit: int = 50):
+    """Простой поиск товаров без сложных параметров"""
     async with async_session() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_user.get('id'))
-        )
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            return {
-                "status": "not_found", 
-                "telegram_user": telegram_user,
-                "message": "Пользователь не зарегистрирован в системе"
+        query = select(Product).where(
+            Product.is_available == True
+        ).options(selectinload(Product.category))  # ДОБАВЛЯЕМ eager loading для категорий
+        if q and q.strip():
+            query = query.where(Product.name.ilike(f"%{q.strip()}%"))
+        query = query.limit(limit)
+        result = await session.execute(query)
+        products = result.scalars().all()
+        return [
+            {
+                "product_id": p.product_id,
+                "name": p.name,
+                "description": p.description,
+                "price": float(p.price),
+                "stock_quantity": p.stock_quantity,
+                "images": json.loads(p.images) if p.images else [],
+                "category": {
+                    "category_id": p.category.category_id,
+                    "name": p.category.name,
+                    "icon": p.category.icon
+                } if p.category else None
             }
-        
-        return {
-            "status": "success", 
-            "user": {
-                "user_id": user.user_id,
-                "telegram_id": user.telegram_id,
-                "username": user.username,
-                "name": user.name,
-                "created_at": user.created_at
-            }, 
-            "telegram_user": telegram_user
-        }
-    
-@app.get("/api/debug/headers")
-async def debug_headers(request: Request):
-    """Debug endpoint для проверки заголовков"""
-    headers = dict(request.headers)
-    return {
-        "path": str(request.url),
-        "headers": headers,
-        "telegram_init_data": headers.get('x-telegram-init-data'),
-        "has_auth": bool(headers.get('x-telegram-init-data'))
-    }
-
-@app.get("/api/test-images")
-async def test_images():
-    """Тестовый endpoint для проверки изображений"""
-    return {
-        "test_image_url": "https://via.placeholder.com/300x400/667eea/ffffff?text=Test+Image",
-        "api_base_url": "http://localhost:8000"
-    }
-
-# Добавьте после других эндпоинтов:
-@app.get("/api/test/no-auth")
-async def test_no_auth():
-    """Тестовый эндпоинт без авторизации"""
-    return {"status": "ok", "message": "No auth required", "timestamp": datetime.now().isoformat()}
-
-@app.get("/api/test/with-auth")
-async def test_with_auth(x_telegram_init_data: str = Header(None)):
-    """Тестовый эндпоинт с авторизацией"""
-    return {
-        "status": "ok", 
-        "message": "Auth check passed", 
-        "has_init_data": bool(x_telegram_init_data),
-        "init_data_length": len(x_telegram_init_data) if x_telegram_init_data else 0,
-        "timestamp": datetime.now().isoformat()
-    }
-
-@app.post("/api/users/auto-create")
-async def auto_create_user(telegram_id: int):
-    """Создать пользователя автоматически (для тестирования)"""
-    async with async_session() as session:
-        # Проверяем, существует ли пользователь
-        result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        existing_user = result.scalar_one_or_none()
-        
-        if existing_user:
-            return existing_user
-        
-        # Создаем нового пользователя
-        user = User(
-            telegram_id=telegram_id,
-            username=f"user_{telegram_id}",
-            name=f"User {telegram_id}",
-            is_active=True
-        )
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-        
-        # Создаем корзину для пользователя
-        cart = Cart(user_id=user.user_id)
-        session.add(cart)
-        await session.commit()
-        
-        return user
-    
-@app.get("/api/test-search")
-async def test_search(q: str = ""):
-    """Тестовый эндпоинт для проверки поиска"""
-    async with async_session() as session:
-        query = select(Product)
-        if q:
-            query = query.where(Product.name.ilike(f"%{q}%"))
-        
-        result = await session.execute(query.limit(10))
-        products = result.scalars().all()
-        
-        return {
-            "query": q,
-            "count": len(products),
-            "products": [
-                {
-                    "id": p.product_id,
-                    "name": p.name,
-                    "price": float(p.price),
-                    "images": p.images
-                }
-                for p in products
-            ]
-        }
-    
-@app.get("/api/search")
-async def search(q: str = ""):
-    """Простой эндпоинт для поиска"""
-    async with async_session() as session:
-        if not q:
-            return []
-        
-        result = await session.execute(
-            select(Product).where(
-                Product.is_available == True,
-                Product.name.ilike(f"%{q}%")
-            ).limit(10)
-        )
-        products = result.scalars().all()
-        return products
-    
-@app.get("/api/test")
-async def test_api():
-    """Тестовый эндпоинт для проверки работы API"""
-    return {
-        "status": "ok",
-        "message": "API работает",
-        "timestamp": datetime.now().isoformat()
-    }
+            for p in products
+        ]
 
 if __name__ == "__main__":
     import uvicorn

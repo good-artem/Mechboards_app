@@ -8,6 +8,12 @@
   --tg-theme-button-color: #2481cc;
   --tg-theme-button-text-color: #ffffff;
   --tg-theme-secondary-bg-color: #f1f1f1;
+  --bg-color: var(--tg-theme-bg-color, #ffffff);
+  --text-color: var(--tg-theme-text-color, #000000);
+  --hint-color: var(--tg-theme-hint-color, #999999);
+  --link-color: var(--tg-theme-link-color, #2481cc);
+  --button-color: var(--tg-theme-button-color, #2481cc);
+  --button-text-color: var(--tg-theme-button-text-color, #ffffff);
 }
 
 /* Принудительное применение темы Telegram ко всем элементам */
@@ -137,4 +143,35 @@
 
 .v-main {
   background: var(--tg-theme-bg-color, var(--v-theme-background)) !important;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* Адаптация кнопок для темной темы в корзине */
+.quantity-btn {
+    background-color: rgba(0, 0, 0, 0.08) !important;
+    color: var(--text-color) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+
+.quantity-btn:hover {
+    background-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+.remove-btn {
+    background-color: rgba(244, 67, 54, 0.1) !important;
+    color: #f44336 !important;
+}
+
+.checkout-btn {
+    background: var(--button-color) !important;
+    color: var(--button-text-color) !important;
+}
+
+.confirm-order-btn {
+    background: var(--button-color) !important;
+    color: var(--button-text-color) !important;
 }

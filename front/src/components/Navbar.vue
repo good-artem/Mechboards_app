@@ -4,7 +4,7 @@
             <v-icon>mdi-view-grid</v-icon>
         </v-btn>
 
-        <v-btn value="support" to="/support">
+        <v-btn value="services" to="/services">
             <v-icon>mdi-tools</v-icon>
         </v-btn>
 
@@ -32,74 +32,56 @@ export default {
             unsubscribeEvents: null
         }
     },
-    async mounted() {
-        await this.fetchCartCount();
-        
+    mounted() {
+        this.fetchCartCount();
         // Подписываемся на события обновления корзины
-        this.unsubscribeEvents = this.$root.$on('cart-updated', this.fetchCartCount);
+        this.$root.$on('cart-updated', this.fetchCartCount);
     },
     beforeUnmount() {
-        // Отписываемся от событий
-        if (this.unsubscribeEvents) {
-            this.unsubscribeEvents();
-        }
+        this.$root.$off('cart-updated', this.fetchCartCount);
     },
     methods: {
         async fetchCartCount() {
             try {
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                const telegramId = tg_user?.id || 391622124;
                 
-                if (!tg_user) {
-                    console.warn('⚠️ Telegram user not found, using default ID for testing');
-                    // Для тестирования используем фиктивный ID
-                    const testUserId = 391622124;
-                    await this.fetchCartForUser(testUserId);
-                    return;
-                }
+                const { get, endpoints } = useApi();
+                const cartData = await get(endpoints.cart.get(telegramId));
                 
-                await this.fetchCartForUser(tg_user.id);
-                
+                // Устанавливаем количество товаров из корзины
+                this.cartItemsCount = cartData.items?.length || 0;
             } catch (error) {
                 console.error('❌ Ошибка загрузки корзины для навбара:', error);
                 this.cartItemsCount = 0;
             }
         },
         
-        async fetchCartForUser(telegramId) {
-            try {
-                const baseUrl = this.getApiBaseUrl();
-                const cartUrl = `${baseUrl}/api/cart/${telegramId}`;
-                
-                console.log('🔄 Загрузка корзины для навбара:', cartUrl);
-                
-                const response = await fetch(cartUrl);
-                
-                if (response.ok) {
-                    const cartData = await response.json();
-                    this.cartItemsCount = cartData.items?.length || 0;
-                    console.log('🛒 Cart count updated:', this.cartItemsCount);
-                } else {
-                    console.warn('⚠️ Не удалось загрузить корзину, статус:', response.status);
-                    this.cartItemsCount = 0;
-                }
-            } catch (error) {
-                console.error('❌ Ошибка загрузки корзины:', error);
-                this.cartItemsCount = 0;
-            }
-        },
-        
         getApiBaseUrl() {
+            // ЯВНО указываем URL бэкенда для продакшена
             if (import.meta.env.VITE_API_BASE_URL) {
                 return import.meta.env.VITE_API_BASE_URL;
             }
-            
             const hostname = window.location.hostname;
             if (hostname.includes('github.dev')) {
                 return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
             } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
                 return 'http://localhost:8000';
             } else {
-                return window.location.origin;
+                // ЯВНО указываем URL бэкенда для Firebase
+                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+            }
+        },
+        async fetchCartForUser(telegramId) {
+            try {
+                // Используем useApi для правильной авторизации
+                const { get, endpoints } = useApi();
+                const cartData = await get(endpoints.cart.get(telegramId));
+                this.cartItemsCount = cartData.items?.length || 0;
+                console.log('🛒 Cart count updated:', this.cartItemsCount);
+            } catch (error) {
+                console.error('❌ Ошибка загрузки корзины:', error);
+                this.cartItemsCount = 0;
             }
         }
     }

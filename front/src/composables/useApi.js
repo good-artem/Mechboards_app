@@ -11,42 +11,79 @@ export function useApi() {
       return window.Telegram.WebApp.initData;
     }
     
-    // Для разработки можно использовать фиктивные данные
-    if (import.meta.env.MODE === 'development') {
-      console.warn('⚠️ В режиме разработки: используем фиктивные данные Telegram');
-      return 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%7D&hash=FAKE_HASH_FOR_DEV';
+    // Для разработки в Codespaces
+    if (import.meta.env.DEV) {
+      const testUserId = 391622124;
+      const mockUser = {
+        id: testUserId,
+        first_name: "Test",
+        last_name: "User",
+        username: "testuser",
+        language_code: "ru"
+      };
+      const authDate = Math.floor(Date.now() / 1000);
+      const dataCheckString = `auth_date=${authDate}\nuser=${JSON.stringify(mockUser)}`;
+      
+      // Генерируем тестовый хэш (в продакшене это будет делать Telegram)
+      return `user=${JSON.stringify(mockUser)}&auth_date=${authDate}&hash=fake_hash_for_dev`;
     }
     
+    console.warn('⚠️ Telegram initData не найден!');
     return null;
   }
 
+  const getAuthHeaders = () => {
+    const headers = {};
+    const telegramInitData = getTelegramInitData();
+    
+    if (telegramInitData) {
+      headers['X-Telegram-Init-Data'] = telegramInitData;
+    }
+    
+    return headers;
+  }
+
+  const buildUrlWithParams = (endpoint, params = {}) => {
+    const url = API_CONFIG.getUrl(endpoint);
+    if (!params || Object.keys(params).length === 0) {
+      return url;
+    }
+    
+    const queryString = new URLSearchParams(params).toString();
+    return `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
+  }
+
   const apiRequest = async (endpoint, options = {}) => {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
 
     try {
-      const url = API_CONFIG.getUrl(endpoint)
-      console.log('🔄 API Request to:', url)
+      let url = endpoint;
       
-      // Получаем Telegram initData
-      const initData = getTelegramInitData();
+      // Если endpoint начинается с / или не содержит http, считаем его относительным
+      if (endpoint.startsWith('/') || !endpoint.startsWith('http')) {
+        url = buildUrlWithParams(endpoint, options.params);
+      }
+      
+      console.log('🔄 API Request to:', url);
       
       const headers = {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         ...options.headers
-      }
-      
-      // Добавляем Telegram auth в заголовки
-      if (initData) {
-        headers['X-Telegram-Init-Data'] = initData;
-      } else {
-        console.warn('⚠️ Telegram initData не найден. Запрос может быть отклонен бэкендом.');
+      };
+
+      const fetchOptions = {
+        headers,
+        method: options.method || 'GET'
+      };
+
+      // Добавляем тело запроса для POST/PUT
+      if (options.body && ['POST', 'PUT', 'PATCH'].includes(fetchOptions.method)) {
+        fetchOptions.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
       }
 
-      const response = await fetch(url, {
-        headers,
-        ...options
-      })
+      const response = await fetch(url, fetchOptions);
 
       if (response.status === 401) {
         throw new Error('Требуется авторизация Telegram. Обновите страницу.');
@@ -57,16 +94,29 @@ export function useApi() {
       }
 
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = { detail: await response.text() };
+        }
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json()
-      console.log('✅ API Response:', data)
-      return data
+      // Обрабатываем разные типы ответов
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        console.log('✅ API Response:', data);
+        return data;
+      } else {
+        const text = await response.text();
+        console.log('✅ API Text Response:', text);
+        return text;
+      }
     } catch (err) {
-      error.value = err.message
-      console.error('❌ API request failed:', err)
+      error.value = err.message;
+      console.error('❌ API request failed:', err);
       
       // Показываем понятные сообщения об ошибках
       if (err.message.includes('авторизация')) {
@@ -75,31 +125,24 @@ export function useApi() {
         alert('❌ Доступ запрещен. У вас нет прав на это действие.');
       }
       
-      throw err
+      throw err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
-  const get = (endpoint) => apiRequest(endpoint)
+  const get = (endpoint, options = {}) => apiRequest(endpoint, { ...options, method: 'GET' });
   
-  const post = (endpoint, data) => 
-    apiRequest(endpoint, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    })
+  const post = (endpoint, data, options = {}) => 
+    apiRequest(endpoint, { ...options, method: 'POST', body: data });
   
-  const put = (endpoint, data) =>
-    apiRequest(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    })
+  const put = (endpoint, data, options = {}) =>
+    apiRequest(endpoint, { ...options, method: 'PUT', body: data });
   
-  const del = (endpoint, data) =>
-    apiRequest(endpoint, {
-      method: 'DELETE',
-      body: data ? JSON.stringify(data) : undefined
-    })
+  const del = (endpoint, data, options = {}) =>
+    apiRequest(endpoint, { ...options, method: 'DELETE', body: data });
+
+  const getBaseUrl = () => API_CONFIG.getBaseUrl();
 
   return {
     loading,
@@ -108,6 +151,7 @@ export function useApi() {
     post,
     put,
     delete: del,
-    endpoints: API_CONFIG.endpoints
+    endpoints: API_CONFIG.endpoints,
+    getBaseUrl
   }
 }

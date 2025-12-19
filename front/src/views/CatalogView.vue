@@ -336,23 +336,17 @@ export default {
 
         if (this.$route.query.search) {
             this.searchQuery = this.$route.query.search;
-            this.handleSearch(this.searchQuery);
+            await this.fetchProductsForSearch(this.searchQuery);
         }
         
-        // Подписываемся на глобальные события от SearchBar
-        this.$root.$on('search', this.handleSearch);
+        // Подписываемся на события поиска
         this.$root.$on('search-results', this.handleSearchResults);
         this.$root.$on('clear-search', this.handleClearSearch);
-        this.$root.$on('product-selected', this.openProductDetail);
-        this.$root.$on('show-all-results', this.showAllResults);
     },
     beforeUnmount() {
         // Отписываемся от событий
-        this.$root.$off('search', this.handleSearch);
         this.$root.$off('search-results', this.handleSearchResults);
         this.$root.$off('clear-search', this.handleClearSearch);
-        this.$root.$off('product-selected', this.openProductDetail);
-        this.$root.$off('show-all-results', this.showAllResults);
     },
     computed: {
         productImages() {
@@ -458,7 +452,10 @@ export default {
             }, 3000);
         },
         formatPrice(price) {
-            return new Intl.NumberFormat('ru-RU').format(price) + ' ₽';
+            return new Intl.NumberFormat('ru-BY', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(price) + ' р.';
         },
         getProductImage(product) {
             if (product.images && product.images.length > 0) {
@@ -665,7 +662,7 @@ export default {
             }
         },
         handleSearchResults(searchData) {
-            console.log('📦 Получены результаты поиска:', searchData);
+            console.log('📦 Обработка результатов поиска:', searchData);
             
             if (!searchData || !searchData.results || searchData.results.length === 0) {
                 this.products = [];
@@ -679,6 +676,7 @@ export default {
                 return;
             }
             
+            // Устанавливаем результаты поиска как текущий список товаров
             this.products = searchData.results;
             this.allProducts = [...searchData.results];
             this.searchQuery = searchData.query;
@@ -687,57 +685,40 @@ export default {
                 name: `Результаты поиска: "${searchData.query}"`,
                 category_id: null 
             };
-            
             console.log('✅ Товары обновлены для поиска:', this.products.length);
         },
-        handleSearch(searchQuery) {
-            this.searchQuery = searchQuery;
-            if (searchQuery.trim()) {
-                console.log('🔍 Начат поиск:', searchQuery);
-                this.selectedCategory = { 
-                    name: `Поиск: "${searchQuery}"`,
-                    category_id: null 
-                };
-                this.showProducts = true;
-                
-                // Запускаем поиск если SearchBar не сработал
-                this.fetchProductsForSearch(searchQuery);
+        handleClearSearch() {
+            this.searchQuery = '';
+            if (this.selectedCategory?.category_id) {
+                // Если есть выбранная категория - возвращаемся к ней
+                this.fetchProducts(this.selectedCategory.category_id);
             } else {
-                this.clearSearch();
+                // Иначе возвращаемся к списку категорий
+                this.backToCategories();
             }
         },
         async fetchProductsForSearch(searchQuery) {
             this.loading = true;
             try {
-                const baseUrl = this.getApiBaseUrl();
-                const apiUrl = `${baseUrl}/api/products/search?q=${encodeURIComponent(searchQuery)}&limit=50`;
+                const { get, endpoints } = useApi();
+                // Используем стандартный endpoint для поиска
+                const products = await get(`${endpoints.products.search}?q=${encodeURIComponent(searchQuery)}&limit=50`);
                 
-                const response = await fetch(apiUrl);
-                
-                if (response.ok) {
-                    const products = await response.json();
-                    this.products = products;
-                    this.allProducts = [...products];
-                    
-                    this.showProducts = true;
-                    this.selectedCategory = { 
-                        name: `Результаты поиска: "${searchQuery}"`,
-                        category_id: null 
-                    };
-                    
-                    console.log('🔍 Результаты поиска:', products);
-                    
-                } else {
-                    console.error('❌ Ошибка поиска товаров:', response.status);
-                    this.products = [];
-                    this.showMessage('Товары не найдены', 'warning');
-                }
+                this.products = products;
+                this.allProducts = [...products];
+                this.showProducts = true;
+                this.searchQuery = searchQuery;
+                this.selectedCategory = { 
+                    name: `Результаты поиска: "${searchQuery}"`,
+                    category_id: null 
+                };
             } catch (error) {
-                console.error('❌ Ошибка сети:', error);
+                console.error('❌ Ошибка поиска:', error);
                 this.products = [];
                 this.showMessage('Ошибка подключения к серверу', 'error');
+            } finally {
+                this.loading = false;
             }
-            this.loading = false;
         },
         handleClearSearch() {
             this.searchQuery = '';

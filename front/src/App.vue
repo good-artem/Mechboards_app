@@ -10,18 +10,10 @@
         ></v-progress-circular>
         <div class="loading-text">Загрузка...</div>
       </div>
-
       <!-- Основной контент -->
       <div v-else class="main-content">
         <router-view />
       </div>
-
-      <!-- Поиск всегда над навбаром -->
-      <SearchBar />
-
-      <!-- Навбар -->
-      <Navbar />
-
       <!-- Системные уведомления -->
       <v-snackbar
         v-model="showSnackbar"
@@ -32,13 +24,13 @@
         {{ snackbarMessage }}
       </v-snackbar>
     </v-main>
+    <!-- Навбар - всегда внизу -->
+    <Navbar />
   </v-app>
 </template>
 
 <script>
 import Navbar from './components/Navbar.vue'
-import SearchBar from './components/SearchBar.vue'
-
 // Импортируем глобальные стили
 import '@/assets/styles/global.css'
 import '@/assets/styles/telegram-theme.css'
@@ -47,8 +39,7 @@ import '@/assets/styles/app.css'
 export default {
   name: 'App',
   components: {
-    Navbar,
-    SearchBar
+    Navbar
   },
   data() {
     return {
@@ -61,15 +52,8 @@ export default {
   mounted() {
     // Инициализация Telegram Web App
     this.initTelegramApp()
-    
     // Глобальная обработка ошибок
     this.setupErrorHandling()
-    
-    // Добавляем глобальный метод для отладки
-    window.debugCart = () => {
-        this.$root.$emit('debug-cart');
-    }
-    console.log('🔧 Для отладки используйте debugCart() в консоли');
   },
   methods: {
     initTelegramApp() {
@@ -77,7 +61,6 @@ export default {
         try {
           window.Telegram.WebApp.ready()
           window.Telegram.WebApp.expand()
-          
           // Устанавливаем тему Telegram
           this.applyTelegramTheme()
         } catch (error) {
@@ -85,28 +68,24 @@ export default {
         }
       }
     },
-
     applyTelegramTheme() {
       if (window.Telegram?.WebApp) {
         const theme = window.Telegram.WebApp.colorScheme
         document.documentElement.setAttribute('data-theme', theme)
       }
     },
-
     setupErrorHandling() {
       // Глобальный обработчик ошибок
       window.addEventListener('error', (event) => {
         console.error('Global error:', event.error)
         this.showMessage('Произошла ошибка приложения', 'error')
       })
-
       // Обработчик обещаний без catch
       window.addEventListener('unhandledrejection', (event) => {
         console.error('Unhandled promise rejection:', event.reason)
         this.showMessage('Ошибка загрузки данных', 'error')
       })
     },
-
     showMessage(message, type = 'info') {
       this.snackbarMessage = message
       this.snackbarColor = type === 'error' ? 'error' : 'primary'

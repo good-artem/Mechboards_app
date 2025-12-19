@@ -2,18 +2,35 @@ import asyncio
 import sys
 import os
 from datetime import datetime, timedelta
-import json  # Добавьте в начало, если нет
+import json  # Импортируем модуль json
 
 # Добавляем путь к текущей директории для импортов
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from models import async_session, Category, Product, Service, News
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 async def seed_database():
     async with async_session() as session:
         try:
             print("Начинаем заполнение/обновление базы тестовыми данными...")
+
+            # 1. Проверяем и добавляем колонку image_url в таблицу services если её нет
+            try:
+                # Проверяем структуру таблицы services
+                result = await session.execute(text("PRAGMA table_info(services)"))
+                columns = [row[1] for row in result.fetchall()]
+                
+                if 'image_url' not in columns:
+                    print("Добавляем колонку image_url в таблицу services...")
+                    await session.execute(text("ALTER TABLE services ADD COLUMN image_url VARCHAR(500)"))
+                    await session.commit()
+                    print("✅ Колонка image_url добавлена")
+                else:
+                    print("✅ Колонка image_url уже существует")
+            except Exception as e:
+                print(f"⚠️ Ошибка при проверке/добавлении колонки image_url: {e}")
+                await session.rollback()
 
             # 1. КАТЕГОРИИ - upsert (обновляем если есть, создаем если нет)
             categories_data = [
@@ -134,10 +151,13 @@ async def seed_database():
                     product.description = prod_data["description"]
                     product.price = prod_data["price"]
                     product.category_id = prod_data["category_id"]
-                    product.images = json.dumps(prod_data["images"])
                     product.is_available = prod_data["is_available"]
+                    # Обработка изображений
+                    if isinstance(prod_data["images"], list):
+                        product.images = json.dumps(prod_data["images"])
+                    else:
+                        product.images = prod_data["images"]
                     # Не обновляем stock_quantity чтобы не сбрасывать остатки
-                    # product.stock_quantity = prod_data["stock_quantity"]
                     print(f"📝 Обновлен товар: {prod_data['name']}")
                 else:
                     # Создаем новый товар
@@ -163,7 +183,8 @@ async def seed_database():
                     "price": 1500.00,
                     "duration": "2-3 дня",
                     "category": "Сборка",
-                    "is_active": True
+                    "is_active": True,
+                    "image_url": "https://via.placeholder.com/100x100/667eea/ffffff?text=Assembly"
                 },
                 {
                     "name": "Лубрикация свитчей",
@@ -171,7 +192,8 @@ async def seed_database():
                     "price": 800.00,
                     "duration": "1-2 дня",
                     "category": "Моддинг",
-                    "is_active": True
+                    "is_active": True,
+                    "image_url": "https://via.placeholder.com/100x100/764ba2/ffffff?text=Lubrication"
                 },
                 {
                     "name": "Замена стабилизаторов",
@@ -179,7 +201,8 @@ async def seed_database():
                     "price": 500.00,
                     "duration": "1 день",
                     "category": "Ремонт",
-                    "is_active": True
+                    "is_active": True,
+                    "image_url": "https://via.placeholder.com/100x100/f093fb/ffffff?text=Stabilizers"
                 },
             ]
 
@@ -196,6 +219,7 @@ async def seed_database():
                     service.duration = serv_data["duration"]
                     service.category = serv_data["category"]
                     service.is_active = serv_data["is_active"]
+                    service.image_url = serv_data.get("image_url")
                     print(f"📝 Обновлена услуга: {serv_data['name']}")
                 else:
                     # Создаем новую услугу
@@ -205,7 +229,8 @@ async def seed_database():
                         price=serv_data["price"],
                         duration=serv_data["duration"],
                         category=serv_data["category"],
-                        is_active=serv_data["is_active"]
+                        is_active=serv_data["is_active"],
+                        image_url=serv_data.get("image_url")
                     )
                     session.add(service)
                     print(f"✅ Создана услуга: {serv_data['name']}")
@@ -305,6 +330,8 @@ async def seed_database():
         except Exception as e:
             await session.rollback()
             print(f"❌ Ошибка при обновлении базы: {e}")
+            import traceback
+            traceback.print_exc()  # Добавляем вывод полного стека ошибок
             raise
 
 # ИЗМЕНИТЕ вызов в конце файла:

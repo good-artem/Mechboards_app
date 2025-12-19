@@ -1,0 +1,115 @@
+/* Admin View Styles */
+.admin-container {
+  padding: 0 8px;
+  max-width: 100%;
+}
+
+.admin-header {
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+.quick-action-card {
+  border-radius: 12px;
+  height: 100px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  background-color: var(--tg-theme-bg-color, #ffffff);
+  border: 1px solid var(--tg-theme-divider-color, rgba(0,0,0,0.12));
+}
+
+.quick-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.admin-card {
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-table :deep(th) {
+  background-color: var(--tg-theme-bg-color, #ffffff);
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #212121);
+}
+
+.admin-table :deep(tr:hover) {
+  background-color: rgba(0,0,0,0.02);
+}
+
+.stat-card {
+  border-radius: 12px;
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.service-item {
+  border-radius: 12px;
+  background-color: var(--tg-theme-bg-color, #ffffff);
+  border: 1px solid var(--tg-theme-divider-color, rgba(0,0,0,0.12));
+  margin-bottom: 8px;
+  transition: transform 0.2s ease;
+}
+
+.service-item:hover {
+  transform: translateX(4px);
+}
+
+.service-icon {
+  background-color: var(--tg-theme-button-color, #2481cc);
+}
+
+.service-content {
+  color: var(--tg-theme-text-color, #212121);
+}
+
+.service-name {
+  line-height: 1.3;
+  font-weight: 500;
+}
+
+.service-description {
+  line-height: 1.4;
+  color: var(--tg-theme-hint-color, #757575);
+}
+
+.service-price {
+  color: var(--tg-theme-text-color, #212121);
+}
+
+.admin-list {
+  background-color: transparent;
+}
+
+.admin-avatar {
+  font-size: 1.5rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 600px) {
+  .quick-action-card {
+    height: 80px;
+  }
+  
+  .admin-card {
+    margin-bottom: 12px;
+  }
+  
+  .service-item {
+    margin-bottom: 6px;
+  }
+}
