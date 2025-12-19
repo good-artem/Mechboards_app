@@ -25,12 +25,12 @@
       </v-snackbar>
     </v-main>
     <!-- Навбар - всегда внизу -->
-    <Navbar />
+    <NavbarWithSearch/>
   </v-app>
 </template>
 
 <script>
-import Navbar from './components/Navbar.vue'
+import NavbarWithSearch from '@/components/NavbarWithSearch.vue'
 // Импортируем глобальные стили
 import '@/assets/styles/global.css'
 import '@/assets/styles/telegram-theme.css'
@@ -39,7 +39,7 @@ import '@/assets/styles/app.css'
 export default {
   name: 'App',
   components: {
-    Navbar
+    NavbarWithSearch
   },
   data() {
     return {
@@ -101,3 +101,34 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* Добавляем отступ для навбара */
+.tg-app {
+  padding-bottom: 64px; /* Отступ для кнопок навигации (поиск поверх них) */
+}
+
+/* Убираем стандартные отступы Vuetify */
+.v-main {
+  padding-bottom: 0 !important;
+}
+
+/* Стили для загрузки */
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 16px;
+  color: var(--tg-theme-text-color, #000);
+}
+
+.main-content {
+  min-height: calc(100vh - 120px); /* Высота экрана минус высота навбара */
+}
+</style>

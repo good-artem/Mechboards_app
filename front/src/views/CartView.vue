@@ -42,7 +42,74 @@
                                 :key="item.cart_item_id"
                                 class="cart-item pa-3"
                             >
-                                <!-- ... существующий код для товаров ... -->
+                                <template v-slot:prepend>
+                                    <v-avatar rounded="lg" size="50" class="cart-item-image mr-3">
+                                        <v-img 
+                                            :src="getProductImage(item.product)" 
+                                            :alt="item.product.name"
+                                            cover
+                                        ></v-img>
+                                    </v-avatar>
+                                </template>
+
+                                <div class="cart-item-content">
+                                    <div class="cart-item-title font-weight-medium mb-1">
+                                        {{ item.product.name }}
+                                    </div>
+                                    
+                                    <div class="cart-item-subtitle text-body-2">
+                                        {{ formatPrice(item.product.price) }} × {{ item.quantity }} = 
+                                        <span class="font-weight-bold primary--text">
+                                            {{ formatPrice(item.product.price * item.quantity) }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="d-flex align-center mt-2">
+                                        <div class="quantity-controls d-flex align-center mr-4">
+                                            <v-btn 
+                                                icon 
+                                                size="x-small"
+                                                :disabled="item.quantity <= 1 || updatingItemId === item.cart_item_id"
+                                                @click="updateQuantity(item, item.quantity - 1)"
+                                                class="quantity-btn"
+                                                density="comfortable"
+                                                variant="tonal"
+                                                color="grey"
+                                            >
+                                                <v-icon size="16">mdi-minus</v-icon>
+                                            </v-btn>
+                                            
+                                            <span class="mx-2 quantity-display text-body-2 font-weight-medium">{{ item.quantity }}</span>
+                                            
+                                            <v-btn 
+                                                icon 
+                                                size="x-small"
+                                                :disabled="updatingItemId === item.cart_item_id"
+                                                @click="updateQuantity(item, item.quantity + 1)"
+                                                class="quantity-btn"
+                                                density="comfortable"
+                                                variant="tonal"
+                                                color="grey"
+                                            >
+                                                <v-icon size="16">mdi-plus</v-icon>
+                                            </v-btn>
+                                        </div>
+
+                                        <!-- Кнопка удаления товара -->
+                                        <v-btn 
+                                            icon 
+                                            color="error" 
+                                            size="x-small"
+                                            @click="removeFromCart(item)"
+                                            :loading="removingItemId === item.cart_item_id"
+                                            class="remove-btn"
+                                            density="comfortable"
+                                            variant="tonal"
+                                        >
+                                            <v-icon size="18">mdi-delete-outline</v-icon>
+                                        </v-btn>
+                                    </div>
+                                </div>
                             </v-list-item>
                         </v-list>
                     </div>
@@ -56,30 +123,20 @@
                                 :key="serviceItem.cart_service_item_id"
                                 class="cart-service-item pa-3"
                             >
-                                <template v-slot:prepend>
-                                    <v-avatar rounded="lg" size="50" class="cart-item-image mr-3">
-                                        <v-img 
-                                            :src="getServiceImage(serviceItem.service)" 
-                                            :alt="serviceItem.service.name"
-                                            cover
-                                        ></v-img>
-                                    </v-avatar>
-                                </template>
-
-                                <div class="cart-item-content">
-                                    <div class="cart-item-title font-weight-medium mb-1">
+                                <div class="service-item-content">
+                                    <div class="service-item-title font-weight-medium mb-1">
                                         {{ serviceItem.service.name }}
                                     </div>
                                     
-                                    <div class="cart-item-description text-caption text-grey mb-2 line-clamp-2">
+                                    <div class="service-item-description text-caption text-grey mb-2">
                                         {{ serviceItem.service.description || 'Нет описания' }}
                                     </div>
                                     
-                                    <div v-if="serviceItem.notes" class="cart-item-notes text-caption text-grey mb-2">
+                                    <div v-if="serviceItem.notes" class="service-item-notes text-caption text-grey mb-2">
                                         <strong>Примечание:</strong> {{ serviceItem.notes }}
                                     </div>
                                     
-                                    <div class="cart-item-subtitle text-body-2">
+                                    <div class="service-item-subtitle text-body-2">
                                         {{ formatPrice(serviceItem.service.price) }} × {{ serviceItem.quantity }} = 
                                         <span class="font-weight-bold primary--text">
                                             {{ formatPrice(serviceItem.service.price * serviceItem.quantity) }}
@@ -92,52 +149,19 @@
                                 </div>
 
                                 <template v-slot:append>
-                                    <div class="d-flex flex-column align-center cart-item-actions">
-                                        <!-- Управление количеством услуг -->
-                                        <div class="quantity-controls d-flex align-center mb-2">
-                                            <v-btn 
-                                                icon 
-                                                size="x-small"
-                                                :disabled="serviceItem.quantity <= 1 || updatingServiceId === serviceItem.cart_service_item_id"
-                                                @click="updateServiceQuantity(serviceItem, serviceItem.quantity - 1)"
-                                                class="quantity-btn"
-                                                density="comfortable"
-                                                variant="tonal"
-                                                color="grey"
-                                            >
-                                                <v-icon size="16">mdi-minus</v-icon>
-                                            </v-btn>
-                                            
-                                            <span class="mx-2 quantity-display text-body-2 font-weight-medium">{{ serviceItem.quantity }}</span>
-                                            
-                                            <v-btn 
-                                                icon 
-                                                size="x-small"
-                                                :disabled="updatingServiceId === serviceItem.cart_service_item_id"
-                                                @click="updateServiceQuantity(serviceItem, serviceItem.quantity + 1)"
-                                                class="quantity-btn"
-                                                density="comfortable"
-                                                variant="tonal"
-                                                color="grey"
-                                            >
-                                                <v-icon size="16">mdi-plus</v-icon>
-                                            </v-btn>
-                                        </div>
-
-                                        <!-- Кнопка удаления услуги -->
-                                        <v-btn 
-                                            icon 
-                                            color="error" 
-                                            size="x-small"
-                                            @click="removeServiceFromCart(serviceItem)"
-                                            :loading="removingServiceId === serviceItem.cart_service_item_id"
-                                            class="remove-btn"
-                                            density="comfortable"
-                                            variant="tonal"
-                                        >
-                                            <v-icon size="18">mdi-delete-outline</v-icon>
-                                        </v-btn>
-                                    </div>
+                                    <!-- Только кнопка удаления услуги -->
+                                    <v-btn 
+                                        icon 
+                                        color="error" 
+                                        size="x-small"
+                                        @click="removeServiceFromCart(serviceItem)"
+                                        :loading="removingServiceId === serviceItem.cart_service_item_id"
+                                        class="remove-btn"
+                                        density="comfortable"
+                                        variant="tonal"
+                                    >
+                                        <v-icon size="18">mdi-delete-outline</v-icon>
+                                    </v-btn>
                                 </template>
                             </v-list-item>
                         </v-list>
@@ -174,7 +198,56 @@
         </v-row>
 
         <!-- Диалог оформления заказа -->
-        <!-- ... существующий код диалога ... -->
+        <v-dialog v-model="orderDialog" max-width="500">
+            <v-card>
+                <v-card-title>Оформление заказа</v-card-title>
+                <v-card-text>
+                    <v-select
+                        v-model="orderData.shipping_method"
+                        :items="shippingMethods"
+                        label="Способ доставки"
+                        variant="outlined"
+                        density="comfortable"
+                        class="mb-3"
+                    ></v-select>
+                    
+                    <v-textarea
+                        v-model="orderData.shipping_address"
+                        label="Адрес доставки"
+                        variant="outlined"
+                        density="comfortable"
+                        rows="2"
+                        class="mb-3"
+                        placeholder="Укажите адрес доставки"
+                        required
+                    ></v-textarea>
+                    
+                    <v-textarea
+                        v-model="orderData.customer_notes"
+                        label="Комментарий к заказу"
+                        variant="outlined"
+                        density="comfortable"
+                        rows="2"
+                        placeholder="Дополнительная информация для заказа"
+                    ></v-textarea>
+                    
+                    <div class="text-h6 font-weight-bold primary--text mt-3">
+                        Итого к оплате: {{ formatPrice(cartData.total) }}
+                    </div>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="grey" variant="text" @click="orderDialog = false">Отмена</v-btn>
+                    <v-btn 
+                        color="primary" 
+                        @click="confirmOrder"
+                        :loading="creatingOrder"
+                    >
+                        Подтвердить заказ
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </v-container>
 </template>
 
@@ -223,71 +296,6 @@ export default {
         await this.fetchCart();
     },
     methods: {
-        // ... существующие методы для товаров ...
-        
-        getServiceImage(service) {
-            if (!service || !service.image_url) {
-                return 'https://via.placeholder.com/100x100/667eea/ffffff?text=Service';
-            }
-            return service.image_url;
-        },
-        
-        async updateServiceQuantity(serviceItem, newQuantity) {
-            if (!serviceItem || !serviceItem.cart_service_item_id) {
-                console.error('Invalid service item for update:', serviceItem);
-                return;
-            }
-            
-            if (newQuantity < 1) {
-                await this.removeServiceFromCart(serviceItem);
-                return;
-            }
-            
-            this.updatingServiceId = serviceItem.cart_service_item_id;
-            
-            try {
-                const { put } = useApi();
-                await put('/api/cart/update_service', {
-                    cart_service_item_id: serviceItem.cart_service_item_id,
-                    quantity: newQuantity,
-                    notes: serviceItem.notes
-                });
-                
-                await this.fetchCart();
-                this.$root.$emit('cart-updated');
-                this.showMessage('Количество обновлено');
-            } catch (error) {
-                console.error('❌ Error updating service quantity:', error);
-                this.showMessage(`Ошибка: ${error.message || 'Не удалось обновить количество'}`, 'error');
-            } finally {
-                this.updatingServiceId = null;
-            }
-        },
-        
-        async removeServiceFromCart(serviceItem) {
-            if (!serviceItem || !serviceItem.cart_service_item_id) {
-                console.error('Invalid service item for removal:', serviceItem);
-                return;
-            }
-            
-            this.removingServiceId = serviceItem.cart_service_item_id;
-            
-            try {
-                const { del } = useApi();
-                await del('/api/cart/remove_service', {
-                    cart_service_item_id: serviceItem.cart_service_item_id
-                });
-                
-                await this.fetchCart();
-                this.$root.$emit('cart-updated');
-                this.showMessage('Услуга удалена из корзины');
-            } catch (error) {
-                console.error('❌ Error removing service item:', error);
-                this.showMessage(`Ошибка: ${error.message || 'Не удалось удалить услугу'}`, 'error');
-            } finally {
-                this.removingServiceId = null;
-            }
-        },
         formatPrice(price) {
             return new Intl.NumberFormat('ru-BY', {
                 minimumFractionDigits: 2,
@@ -303,12 +311,21 @@ export default {
             try {
                 let imagePath = product.images[0];
                 
-                // Если путь уже полный URL
+                if (typeof product.images === 'string') {
+                    try {
+                        const images = JSON.parse(product.images);
+                        imagePath = images[0];
+                    } catch (e) {
+                        imagePath = product.images;
+                    }
+                } else if (Array.isArray(product.images)) {
+                    imagePath = product.images[0];
+                }
+                
                 if (imagePath.startsWith('http')) {
                     return imagePath;
                 }
                 
-                // Если путь начинается с assets/
                 if (imagePath.startsWith('assets/') || imagePath.startsWith('/assets/')) {
                     if (imagePath.startsWith('/')) {
                         imagePath = imagePath.substring(1);
@@ -317,7 +334,6 @@ export default {
                     return `${baseUrl}/${imagePath}`;
                 }
                 
-                // Если путь относительный
                 const baseUrl = this.getApiBaseUrl();
                 if (imagePath.startsWith('/')) {
                     return `${baseUrl}${imagePath}`;
@@ -354,10 +370,22 @@ export default {
                 const telegramId = tg_user?.id || 391622124;
                 
                 const cartData = await get(endpoints.cart.get(telegramId));
-                this.cartData = cartData || { items: [], total: 0 };
+                this.cartData = cartData || { 
+                    items: [], 
+                    service_items: [], 
+                    total: 0, 
+                    products_total: 0, 
+                    services_total: 0 
+                };
             } catch (error) {
                 console.error('❌ Ошибка загрузки корзины:', error);
-                this.cartData = { items: [], total: 0 };
+                this.cartData = { 
+                    items: [], 
+                    service_items: [], 
+                    total: 0, 
+                    products_total: 0, 
+                    services_total: 0 
+                };
                 this.showMessage('Ошибка загрузки корзины. Попробуйте обновить страницу.', 'error');
             }
             this.loading = false;
@@ -424,6 +452,31 @@ export default {
             }
         },
         
+        async removeServiceFromCart(serviceItem) {
+            if (!serviceItem || !serviceItem.cart_service_item_id) {
+                console.error('Invalid service item for removal:', serviceItem);
+                return;
+            }
+            
+            this.removingServiceId = serviceItem.cart_service_item_id;
+            
+            try {
+                const { del } = useApi();
+                await del('/api/cart/remove_service', {
+                    cart_service_item_id: serviceItem.cart_service_item_id
+                });
+                
+                await this.fetchCart();
+                this.$root.$emit('cart-updated');
+                this.showMessage('Услуга удалена из корзины');
+            } catch (error) {
+                console.error('❌ Error removing service item:', error);
+                this.showMessage(`Ошибка: ${error.message || 'Не удалось удалить услугу'}`, 'error');
+            } finally {
+                this.removingServiceId = null;
+            }
+        },
+        
         createOrder() {
             this.orderDialog = true;
         },
@@ -437,17 +490,14 @@ export default {
                 if (tg_user) {
                     telegramId = tg_user.id;
                 } else {
-                    // Для тестирования
                     telegramId = 391622124;
                 }
                 
-                // Валидация данных заказа
-                if (!this.orderData.shipping_address || !this.orderData.shipping_method) {
-                    throw new Error('Заполните адрес доставки и выберите способ доставки');
+                if (!this.orderData.shipping_address.trim()) {
+                    throw new Error('Заполните адрес доставки');
                 }
                 
-                // Проверяем товары в корзине
-                if (!this.cartData.items || this.cartData.items.length === 0) {
+                if (this.totalItemsCount === 0) {
                     throw new Error('Корзина пуста');
                 }
                 
@@ -467,14 +517,15 @@ export default {
                     this.showMessage(`Заказ №${result.order_number} успешно создан!`);
                     this.orderDialog = false;
                     
-                    // Обновляем корзину
                     await this.fetchCart();
                     this.$root.$emit('cart-updated');
                     
-                    // Перенаправляем на страницу профиля
                     this.$router.push({ 
                         path: '/profile', 
-                        query: { success: 'order_created', orderNumber: result.order_number } 
+                        query: { 
+                            success: 'order_created', 
+                            orderNumber: result.order_number 
+                        } 
                     });
                 } else {
                     throw new Error('Не удалось создать заказ. Попробуйте еще раз.');
@@ -488,7 +539,6 @@ export default {
         },
         
         showMessage(message, type = 'success') {
-            // Показываем через родительский компонент
             if (this.$root && this.$root.$emit) {
                 this.$root.$emit('show-message', message, type);
             } else {

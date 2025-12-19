@@ -4,9 +4,6 @@
         <NewsCarousel v-if="!showProducts" />
         
         <v-container :class="{'with-news': !showProducts, 'without-news': showProducts}">
-            <!-- SearchBar с обработкой событий -->
-            <SearchBar />
-
             <!-- Панель фильтров и сортировки (только при просмотре товаров) -->
             <div v-if="showProducts" class="filters-bar">
                 <v-card class="pa-2" elevation="1" style="background: var(--tg-theme-bg-color, #ffffff);">
@@ -128,7 +125,7 @@
                 </v-row>
             </div>
 
-            <!-- Товары (показываются при выборе категории) -->
+            <!-- Товары (показываются при выборе категории или поиске) -->
             <div v-else class="products-container">
                 <!-- Информация о выбранной категории и поиске -->
                 <div v-if="selectedCategory || searchQuery" class="mb-4">
@@ -259,17 +256,6 @@
                     </v-card-actions>
                 </v-card>
             </v-dialog>
-            
-            <!-- Тестовая кнопка поиска (временно для отладки) -->
-            <v-btn 
-                v-if="$route.name === 'catalog' && !showProducts"
-                @click="testSearch"
-                color="secondary"
-                class="ma-2"
-                small
-            >
-                Тест поиска
-            </v-btn>
         </v-container>
     </div>
 </template>
@@ -278,7 +264,8 @@
 import CategoryCard from '@/components/CategoryCard.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import NewsCarousel from '@/components/NewsCarousel.vue'
-import SearchBar from '@/components/SearchBar.vue'
+// Удаляем импорт SearchBar
+// import SearchBar from '@/components/SearchBar.vue'
 
 import '@/assets/styles/components/catalog-view.css'
 import { useApi } from '@/composables/useApi'
@@ -288,8 +275,9 @@ export default {
     components: {
         CategoryCard,
         ProductCard,
-        NewsCarousel,
-        SearchBar
+        NewsCarousel
+        // Удаляем SearchBar из компонентов
+        // SearchBar
     },
     data() {
         return {
@@ -334,19 +322,28 @@ export default {
     async mounted() {
         await this.fetchCategories();
 
-        if (this.$route.query.search) {
-            this.searchQuery = this.$route.query.search;
-            await this.fetchProductsForSearch(this.searchQuery);
+        // Проверяем параметр поиска из URL
+        if (this.$route.query.q) {
+            this.searchQuery = this.$route.query.q;
+            await this.performSearchFromQuery();
         }
-        
-        // Подписываемся на события поиска
-        this.$root.$on('search-results', this.handleSearchResults);
-        this.$root.$on('clear-search', this.handleClearSearch);
     },
-    beforeUnmount() {
-        // Отписываемся от событий
-        this.$root.$off('search-results', this.handleSearchResults);
-        this.$root.$off('clear-search', this.handleClearSearch);
+    watch: {
+        // Отслеживаем изменения параметра поиска в URL
+        '$route.query.q'(newQuery) {
+            if (newQuery !== this.searchQuery) {
+                this.searchQuery = newQuery || '';
+                if (newQuery) {
+                    this.performSearchFromQuery();
+                } else if (this.selectedCategory) {
+                    // Если поиск очищен, но есть категория, показываем товары категории
+                    this.fetchProducts(this.selectedCategory.category_id);
+                } else {
+                    // Если ничего нет, возвращаемся к категориям
+                    this.backToCategories();
+                }
+            }
+        }
     },
     computed: {
         productImages() {
@@ -426,11 +423,33 @@ export default {
         }
     },
     methods: {
-        testSearch() {
-            console.log('🧪 Тестирование поиска...');
-            this.searchQuery = 'key';
-            this.fetchProductsForSearch('key');
+        async performSearchFromQuery() {
+            this.loading = true;
+            try {
+                const { get } = useApi();
+                const products = await get('/api/simple-search', {
+                    params: {
+                        q: this.searchQuery,
+                        limit: 50
+                    }
+                });
+                
+                this.products = products;
+                this.allProducts = [...products];
+                this.showProducts = true;
+                this.selectedCategory = { 
+                    name: `Результаты поиска: "${this.searchQuery}"`,
+                    category_id: null 
+                };
+                console.log('✅ Товары обновлены для поиска:', this.products.length);
+            } catch (error) {
+                console.error('❌ Ошибка поиска:', error);
+                this.showMessage('Ошибка подключения к серверу', 'error');
+            } finally {
+                this.loading = false;
+            }
         },
+        
         getApiBaseUrl() {
             if (import.meta.env.VITE_API_BASE_URL) {
                 return import.meta.env.VITE_API_BASE_URL;
@@ -442,6 +461,7 @@ export default {
                 return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
             }
         },
+        
         showMessage(message, type = 'success') {
             this.snackbarMessage = message;
             this.snackbarColor = type === 'error' ? 'error' : 'success';
@@ -451,12 +471,14 @@ export default {
                 this.snackbar = false;
             }, 3000);
         },
+        
         formatPrice(price) {
             return new Intl.NumberFormat('ru-BY', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }).format(price) + ' р.';
         },
+        
         getProductImage(product) {
             if (product.images && product.images.length > 0) {
                 if (Array.isArray(product.images)) {
@@ -473,6 +495,7 @@ export default {
             }
             return 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Image';
         },
+        
         async fetchCategories() {
             const { get, endpoints, error } = useApi();
             
@@ -487,6 +510,7 @@ export default {
             }
             this.loading = false;
         },
+        
         async fetchProducts(categoryId = null) {
             const baseUrl = this.getApiBaseUrl();
             let url = `${baseUrl}/api/products`;
@@ -520,11 +544,14 @@ export default {
             }
             this.loading = false;
         },
+        
         getFallbackCategories() {
             return [
                 { category_id: 1, name: 'Весь каталог', icon: 'mdi-view-grid' },
-                { category_id: 2, name: 'Проблема с загрузкой', icon: 'mdi-sale' },];
+                { category_id: 2, name: 'Проблема с загрузкой', icon: 'mdi-sale' },
+            ];
         },
+        
         async onCategorySelected(category) {
             console.log('Selected category:', category.name);
             this.selectedCategory = category;
@@ -538,6 +565,7 @@ export default {
             
             this.showProducts = true;
         },
+        
         getFallbackProducts() {
             return [
                 {
@@ -570,6 +598,7 @@ export default {
                 }
             ];
         },
+        
         applyLocalFilters(products) {
             let filtered = [...products];
             
@@ -583,6 +612,7 @@ export default {
             
             return filtered;
         },
+        
         parsePriceRange(priceRange) {
             switch (priceRange) {
                 case 'До 2000 ₽':
@@ -597,9 +627,11 @@ export default {
                     return [null, null];
             }
         },
+        
         applyFilters() {
             this.products = this.applyLocalFilters(this.allProducts);
         },
+        
         clearFilters() {
             this.filters = {
                 switchType: null,
@@ -609,22 +641,58 @@ export default {
             };
             this.products = [...this.allProducts];
         },
+        
         clearSearchAndFilters() {
             this.clearFilters();
             this.searchQuery = '';
-            this.fetchProducts(this.selectedCategory?.category_id);
+            // Очищаем параметр поиска в URL
+            if (this.$route.query.q) {
+                this.$router.replace({ 
+                    path: '/catalog', 
+                    query: { ...this.$route.query, q: undefined } 
+                });
+            }
+            if (this.selectedCategory?.category_id) {
+                this.fetchProducts(this.selectedCategory.category_id);
+            }
         },
+        
         backToCategories() {
+            // Очищаем параметр поиска в URL
+            if (this.$route.query.q) {
+                this.$router.replace({ 
+                    path: '/catalog', 
+                    query: { ...this.$route.query, q: undefined } 
+                });
+            }
             this.showProducts = false;
             this.selectedCategory = null;
             this.showFilters = false;
             this.searchQuery = '';
             this.clearFilters();
         },
+        
+        clearSearch() {
+            this.searchQuery = '';
+            // Очищаем параметр поиска в URL
+            if (this.$route.query.q) {
+                this.$router.replace({ 
+                    path: '/catalog', 
+                    query: { ...this.$route.query, q: undefined } 
+                });
+            }
+            if (this.selectedCategory?.category_id) {
+                this.fetchProducts(this.selectedCategory.category_id);
+            } else {
+                this.backToCategories();
+            }
+        },
+        
         openProductDetail(product) {
             this.selectedProduct = product;
             this.productDialog = true;
         },
+        
         async addToCart(product) {
             try {
                 const { post, endpoints } = useApi();
@@ -652,92 +720,25 @@ export default {
                 this.showMessage('Ошибка добавления в корзину', 'error');
             }
         },
-        handleSearchResults(searchData) {
-            console.log('📦 Обработка результатов поиска:', searchData);
-            
-            if (!searchData || !searchData.results || searchData.results.length === 0) {
-                this.products = [];
-                this.allProducts = [];
-                this.showProducts = true;
-                this.selectedCategory = { 
-                    name: `Поиск: "${searchData.query}" - ничего не найдено`,
-                    category_id: null 
-                };
-                this.showMessage('Товары не найдены', 'info');
-                return;
-            }
-            
-            // Устанавливаем результаты поиска как текущий список товаров
-            this.products = searchData.results;
-            this.allProducts = [...searchData.results];
-            this.searchQuery = searchData.query;
-            this.showProducts = true;
-            this.selectedCategory = { 
-                name: `Результаты поиска: "${searchData.query}"`,
-                category_id: null 
-            };
-            console.log('✅ Товары обновлены для поиска:', this.products.length);
-        },
-        handleClearSearch() {
-            this.searchQuery = '';
-            if (this.selectedCategory?.category_id) {
-                // Если есть выбранная категория - возвращаемся к ней
-                this.fetchProducts(this.selectedCategory.category_id);
-            } else {
-                // Иначе возвращаемся к списку категорий
-                this.backToCategories();
-            }
-        },
-        async fetchProductsForSearch(searchQuery) {
-            this.loading = true;
-            try {
-                // Используйте простой поиск вместо products/search
-                const { get } = useApi();
-                const products = await get('/api/simple-search', {
-                    params: {
-                        q: searchQuery,
-                        limit: 50
-                    }
-                });
-                
-                this.products = products;
-                this.allProducts = [...products];
-                this.showProducts = true;
-                this.searchQuery = searchQuery;
-                this.selectedCategory = { 
-                    name: `Результаты поиска: "${searchQuery}"`,
-                    category_id: null 
-                };
-            } catch (error) {
-                console.error('❌ Ошибка поиска:', error);
-                this.showMessage('Ошибка подключения к серверу', 'error');
-            } finally {
-                this.loading = false;
-            }
-        },
-        handleClearSearch() {
-            this.searchQuery = '';
-            if (this.showProducts && this.selectedCategory?.category_id) {
-                this.fetchProducts(this.selectedCategory.category_id);
-            } else {
-                this.backToCategories();
-            }
-        },
-        showAllResults(searchData) {
-            if (searchData && searchData.results) {
-                this.products = searchData.results;
-                this.allProducts = [...searchData.results];
-                this.searchQuery = searchData.query;
-                this.showProducts = true;
-                this.selectedCategory = { 
-                    name: `Все результаты: "${searchData.query}"`,
-                    category_id: null 
-                };
-            }
-        },
+        
         handleCartUpdate() {
             this.$root.$emit('cart-updated');
         }
     }
 }
 </script>
+
+<style scoped>
+/* В конце CatalogView.vue, в секции <style scoped> */
+.container {
+    padding-bottom: 60px; /* Только для кнопок, поиск теперь над ними */
+}
+
+.with-news {
+    padding-top: 60px;
+}
+
+.without-news {
+    padding-top: 20px;
+}
+</style>

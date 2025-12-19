@@ -6,15 +6,6 @@
                     <v-card-title class="d-flex align-center">
                         <v-icon size="28" color="primary" class="mr-2">mdi-tools</v-icon>
                         <span class="text-h5 font-weight-bold">Наши услуги</span>
-                        <v-spacer></v-spacer>
-                        <v-btn 
-                            color="primary" 
-                            variant="tonal"
-                            @click="openSupportChat"
-                        >
-                            <v-icon left>mdi-message-text</v-icon>
-                            Связаться с поддержкой
-                        </v-btn>
                     </v-card-title>
                     <v-card-subtitle>
                         Профессиональные услуги по обслуживанию механических клавиатур
@@ -31,35 +22,32 @@
                         >
                             <v-card class="service-card" elevation="1">
                                 <v-card-text class="pa-4">
-                                    <div class="d-flex">
-                                        <div class="service-icon mr-4">
-                                            <v-avatar size="50" rounded="lg" color="primary" class="d-flex align-center justify-center">
-                                                <v-icon size="24" color="white">mdi-wrench</v-icon>
-                                            </v-avatar>
-                                        </div>
+                                    <div class="d-flex align-center justify-space-between">
                                         <div class="service-details flex-grow-1">
                                             <div class="service-name text-h6 font-weight-medium mb-1">
                                                 {{ service.name }}
                                             </div>
-                                            <div class="service-description text-body-2 text-grey mb-3">
+                                            <div class="service-description text-body-2 text-grey mb-2">
                                                 {{ service.description }}
                                             </div>
-                                            <div class="d-flex align-center justify-space-between">
-                                                <div class="service-price text-h6 font-weight-bold primary--text">
-                                                    {{ formatPrice(service.price) }}
-                                                </div>
-                                                <v-btn 
-                                                    color="primary" 
-                                                    variant="tonal"
-                                                    @click="openAddToCartDialog(service)"
-                                                >
-                                                    <v-icon left>mdi-cart-plus</v-icon>
-                                                    Добавить в корзину
-                                                </v-btn>
-                                            </div>
-                                            <div v-if="service.duration" class="service-duration mt-2 text-caption text-grey">
+                                            <div v-if="service.duration" class="service-duration text-caption text-grey">
                                                 Примерное время выполнения: {{ service.duration }}
                                             </div>
+                                            <div class="service-price text-h6 font-weight-bold primary--text mt-2">
+                                                {{ formatPrice(service.price) }}
+                                            </div>
+                                        </div>
+                                        <div class="service-actions ml-4">
+                                            <v-btn 
+                                                color="primary" 
+                                                icon
+                                                @click="addServiceToCartDirectly(service)"
+                                                size="small"
+                                                variant="tonal"
+                                                :loading="addingServiceId === service.service_id"
+                                            >
+                                                <v-icon>mdi-cart-plus</v-icon>
+                                            </v-btn>
                                         </div>
                                     </div>
                                 </v-card-text>
@@ -68,66 +56,25 @@
                     </v-list>
                 </div>
                 
-                <!-- Пустой экран если услуг нет -->
-                <div v-else class="empty-services text-center pa-8">
-                    <v-icon size="64" color="grey-lighten-1">mdi-wrench</v-icon>
-                    <div class="text-h6 mt-4">Услуги не найдены</div>
-                    <div class="text-body-1 mt-2">Скоро здесь появятся услуги по обслуживанию клавиатур</div>
-                </div>
+                <!-- Кнопка "Связаться с нами" как отдельная услуга на всю ширину -->
+                <v-card class="mt-4 pa-4" elevation="1">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <div class="text-h6 font-weight-medium">Нужна помощь?</div>
+                            <div class="text-body-2 text-grey">Свяжитесь с нами в Telegram</div>
+                        </div>
+                        <v-btn 
+                            color="primary"
+                            @click="openSupportChat"
+                            variant="tonal"
+                        >
+                            <v-icon left>mdi-message-text</v-icon>
+                            Написать
+                        </v-btn>
+                    </div>
+                </v-card>
                 
-                <!-- Диалог добавления услуги в корзину -->
-                <v-dialog v-model="addToCartDialog" max-width="500">
-                    <v-card>
-                        <v-card-title class="pa-4">
-                            <v-icon class="mr-2">mdi-cart-plus</v-icon>
-                            Добавить услугу в корзину: {{ selectedService?.name }}
-                        </v-card-title>
-                        <v-card-text class="pa-4">
-                            <div class="service-description mb-4">
-                                <span class="font-weight-medium">Описание:</span>
-                                {{ selectedService?.description }}
-                            </div>
-                            
-                            <div class="mb-3">
-                                <div class="font-weight-medium mb-1">Количество:</div>
-                                <v-text-field
-                                    v-model.number="serviceQuantity"
-                                    type="number"
-                                    min="1"
-                                    variant="outlined"
-                                    density="comfortable"
-                                    hide-details
-                                ></v-text-field>
-                            </div>
-                            
-                            <v-textarea
-                                v-model="serviceNotes"
-                                label="Комментарий к услуге"
-                                placeholder="Опишите детали. Например: количество свитчей для смазки, особенности проблемы и т.д."
-                                rows="3"
-                                auto-grow
-                                variant="outlined"
-                                density="comfortable"
-                            ></v-textarea>
-                            
-                            <div class="text-h6 font-weight-bold primary--text text-right mt-3">
-                                Стоимость: {{ formatPrice(selectedService?.price || 0) }}
-                            </div>
-                        </v-card-text>
-                        <v-card-actions class="pa-4">
-                            <v-spacer></v-spacer>
-                            <v-btn color="grey" variant="text" @click="addToCartDialog = false">Отмена</v-btn>
-                            <v-btn 
-                                color="primary" 
-                                @click="addServiceToCart"
-                                :loading="addingToCart"
-                            >
-                                <v-icon left>mdi-cart-plus</v-icon>
-                                Добавить в корзину
-                            </v-btn>
-                        </v-card-actions>
-                    </v-card>
-                </v-dialog>
+                <!-- Пустой экран если услуг нет -->
             </v-col>
         </v-row>
     </v-container>
@@ -143,11 +90,7 @@ export default {
         return {
             services: [],
             loading: false,
-            addToCartDialog: false,
-            selectedService: null,
-            serviceQuantity: 1,
-            serviceNotes: '',
-            addingToCart: false
+            addingServiceId: null
         }
     },
     async mounted() {
@@ -222,47 +165,38 @@ export default {
             ];
         },
         
-        openAddToCartDialog(service) {
-            this.selectedService = service;
-            this.serviceQuantity = 1;
-            this.serviceNotes = '';
-            this.addToCartDialog = true;
-        },
-        
-        async addServiceToCart() {
-            this.addingToCart = true;
+        async addServiceToCartDirectly(service) {
+            this.addingServiceId = service.service_id;
             try {
                 const { post } = useApi();
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
                 const telegramId = tg_user?.id || 391622124;
                 
-                const result = await post('/api/cart/add_service', {
+                await post('/api/cart/add_service', {
                     telegram_id: telegramId,
-                    service_id: this.selectedService.service_id,
-                    quantity: this.serviceQuantity,
-                    notes: this.serviceNotes
+                    service_id: service.service_id,
+                    quantity: 1,
+                    notes: ''
                 });
                 
-                this.$root.$emit('show-message', `Услуга "${this.selectedService.name}" добавлена в корзину!`, 'success');
+                this.$root.$emit('show-message', `Услуга "${service.name}" добавлена в корзину!`, 'success');
                 this.$root.$emit('cart-updated');
-                this.addToCartDialog = false;
             } catch (error) {
                 console.error('❌ Ошибка добавления услуги в корзину:', error);
                 this.$root.$emit('show-message', 'Ошибка добавления услуги в корзину', 'error');
             } finally {
-                this.addingToCart = false;
+                this.addingServiceId = null;
             }
         },
         
         openSupportChat() {
-            // Открываем чат с ботом через ссылку
-            const botUsername = 'your_bot_username'; // Замените на username вашего бота
+            // Замените 'your_bot_username' на username вашего бота
+            const botUsername = 'MechboardsBot';
             const supportUrl = `https://t.me/${botUsername}`;
             
             if (window.Telegram?.WebApp) {
                 window.Telegram.WebApp.openTelegramLink(supportUrl);
             } else {
-                // Для разработки - открываем в новом окне
                 window.open(supportUrl, '_blank');
             }
         }
@@ -277,15 +211,6 @@ export default {
 
 .service-card {
     border-radius: 12px;
-    transition: transform 0.2s ease;
-}
-
-.service-card:hover {
-    transform: translateY(-2px);
-}
-
-.service-icon {
-    flex-shrink: 0;
 }
 
 .service-details {
@@ -307,5 +232,9 @@ export default {
 
 .service-duration {
     color: var(--tg-theme-hint-color, #757575);
+}
+
+.service-actions {
+    flex-shrink: 0;
 }
 </style>

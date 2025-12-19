@@ -30,14 +30,19 @@
     overflow-y: auto;
 }
 
-.products-container {
-    margin-top: 16px;
-}
-
 .telegram-select .v-field {
     background: var(--tg-theme-secondary-bg-color, #f1f1f1) !important;
 }
 
 .filter-btn, .back-btn {
     color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+/* Добавьте эти стили */
+.container {
+    padding-bottom: 120px; /* Отступ для навбара с поиском */
+}
+
+.products-container {
+    min-height: calc(100vh - 180px); /* Учитываем высоту навбара */
 }
