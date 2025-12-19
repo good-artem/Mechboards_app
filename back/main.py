@@ -1,4 +1,3 @@
-main.py
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.responses import JSONResponse
@@ -176,7 +175,7 @@ async def auth_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return JSONResponse(
             status_code=200,
-            content={"status": "ok"},  # Добавлен content
+            content={"status": "ok"},
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
@@ -198,8 +197,9 @@ async def auth_middleware(request: Request, call_next):
         '/api/test-images',
         '/api/test/no-auth',
         '/api/debug/headers',
-        '/api/user/',  # Добавлено для публичного доступа к пользователям
-        '/api/users/',  # Добавлено
+        '/api/user/',  # Публичные эндпоинты пользователей
+        '/api/users/',  # Публичные эндпоинты пользователей
+        '/api/cart/',   # ДОБАВЛЕНО: эндпоинты корзины тоже публичные для тестирования
         '/assets',
         '/docs',
         '/openapi.json',

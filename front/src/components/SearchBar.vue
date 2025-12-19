@@ -49,6 +49,8 @@
 </template>
 
 <script>
+import { useApi } from '@/composables/useApi'
+
 export default {
     name: "SearchBar",
     data() {
@@ -75,40 +77,48 @@ export default {
             } else {
                 this.searchResults = [];
                 this.showResults = false;
-                this.$emit('clear-search');
+                // Используем глобальное событие для очистки поиска
+                this.$root.$emit('clear-search');
             }
         },
         async performSearch() {
             if (!this.searchQuery.trim()) {
                 this.searchResults = [];
                 this.showResults = false;
-                this.$emit('search', '');
+                this.$root.$emit('search', '');
                 return;
             }
 
             this.searchLoading = true;
             
             try {
-                // Используем эндпоинт поиска
-                const baseUrl = this.getApiBaseUrl();
-                const apiUrl = `${baseUrl}/api/products/search?q=${encodeURIComponent(this.searchQuery)}&limit=5`;
+                const { get, endpoints } = useApi();
                 
-                const response = await fetch(apiUrl);
+                // Получаем результаты поиска с бэкенда
+                const results = await get(`${endpoints.products.search}?q=${encodeURIComponent(this.searchQuery)}&limit=10`);
                 
-                if (response.ok) {
-                    const results = await response.json();
-                    this.searchResults = results;
-                    this.showResults = true;
-                    
-                    // Эмитим событие для родительского компонента
-                    this.$emit('search', this.searchQuery);
-                } else {
-                    console.error('Ошибка поиска:', response.status);
-                    this.searchResults = [];
-                }
+                this.searchResults = results;
+                this.showResults = true;
+                
+                console.log('🔍 Найдено товаров:', results.length);
+                console.log('🔍 Результаты:', results);
+                
+                // Отправляем глобальное событие с результатами поиска
+                this.$root.$emit('search-results', {
+                    query: this.searchQuery,
+                    results: results
+                });
+                
             } catch (error) {
-                console.error('Ошибка поиска:', error);
+                console.error('❌ Ошибка поиска:', error);
                 this.searchResults = [];
+                this.showResults = false;
+                
+                // Даже при ошибке отправляем событие поиска
+                this.$root.$emit('search', this.searchQuery);
+                
+                // Показываем ошибку пользователю через глобальное событие
+                this.$root.$emit('show-message', 'Ошибка поиска товаров', 'error');
             } finally {
                 this.searchLoading = false;
             }
@@ -117,15 +127,18 @@ export default {
             this.searchQuery = '';
             this.searchResults = [];
             this.showResults = false;
-            this.$emit('clear-search');
+            // Глобальное событие очистки поиска
+            this.$root.$emit('clear-search');
         },
         selectProduct(product) {
-            this.$emit('product-selected', product);
+            // Отправляем глобальное событие о выбранном товаре
+            this.$root.$emit('product-selected', product);
             this.searchQuery = product.name;
             this.showResults = false;
         },
         showAllResults() {
-            this.$emit('show-all-results', {
+            // Глобальное событие для показа всех результатов
+            this.$root.$emit('show-all-results', {
                 query: this.searchQuery,
                 results: this.searchResults
             });

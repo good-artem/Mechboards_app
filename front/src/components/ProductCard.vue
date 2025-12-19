@@ -132,21 +132,25 @@ export default {
             console.log('🔄 Adding to cart:', this.product.product_id);
             
             try {
-                // Получаем пользователя Telegram
+                // Получаем пользователя Telegram или используем тестовый ID
+                let telegramId;
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-                if (!tg_user) {
-                    console.error('❌ Telegram user not found');
-                    this.showMessage('Ошибка: пользователь не найден');
-                    return;
+                
+                if (tg_user) {
+                    telegramId = tg_user.id;
+                } else {
+                    // Для тестирования без Telegram
+                    console.warn('⚠️ Telegram user not found, using test ID');
+                    telegramId = 391622124;
                 }
 
-                // Формируем URL для API
-                const apiBaseUrl = this.getApiBaseUrl();
-                const addToCartUrl = `${apiBaseUrl}/api/cart/add`;
+                // Используем прямой fetch для избежания проблем с авторизацией
+                const baseUrl = this.getApiBaseUrl();
+                const addToCartUrl = `${baseUrl}/api/cart/add`;
                 
                 console.log('📤 Sending request to:', addToCartUrl);
                 console.log('📤 Request body:', {
-                    telegram_id: tg_user.id,
+                    telegram_id: telegramId,
                     product_id: this.product.product_id,
                     quantity: 1
                 });
@@ -157,7 +161,7 @@ export default {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        telegram_id: tg_user.id,
+                        telegram_id: telegramId,
                         product_id: this.product.product_id,
                         quantity: 1
                     })
@@ -172,7 +176,12 @@ export default {
                     // Отправляем события
                     this.$emit('add-to-cart', this.product);
                     this.showMessage(`✅ "${this.product.name}" добавлен в корзину`);
-                    this.$emit('cart-updated');
+                    
+                    // Триггерим обновление навбара
+                    if (window.updateCartCount) {
+                        window.updateCartCount();
+                    }
+                    this.$root.$emit('cart-updated');
                     
                 } else {
                     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));

@@ -64,6 +64,12 @@ export default {
     
     // Глобальная обработка ошибок
     this.setupErrorHandling()
+    
+    // Добавляем глобальный метод для отладки
+    window.debugCart = () => {
+        this.$root.$emit('debug-cart');
+    }
+    console.log('🔧 Для отладки используйте debugCart() в консоли');
   },
   methods: {
     initTelegramApp() {

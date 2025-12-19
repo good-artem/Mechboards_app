@@ -46,11 +46,6 @@
     color: var(--tg-theme-text-color, #000000) !important;
 }
 
-.search-bar-container {
-    position: relative;
-    z-index: 1000;
-}
-
 .search-results-dropdown {
     position: absolute;
     top: 100%;

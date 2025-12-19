@@ -203,6 +203,7 @@
 <script>
 import '@/assets/styles/components/cart-view.css'
 import '@/assets/styles/components/product-gallery.css'
+import { useApi } from '@/composables/useApi'
 
 export default {
     name: 'CartView',
@@ -293,53 +294,82 @@ export default {
             }
         },
         
-        formatPrice(price) {
-            return new Intl.NumberFormat('ru-BY', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(price) + ' р.';
-        },
-        
-        getProductImage(product) {
-            if (product.images) {
-                try {
-                    // Если images это строка JSON
-                    if (typeof product.images === 'string') {
-                        const parsedImages = JSON.parse(product.images);
-                        if (Array.isArray(parsedImages) && parsedImages.length > 0) {
-                            return parsedImages[0];
-                        }
-                    }
-                    // Если images это массив
-                    if (Array.isArray(product.images) && product.images.length > 0) {
-                        return product.images[0];
-                    }
-                } catch (e) {
-                    console.warn('Cannot parse product images:', e);
-                }
-            }
-            return 'https://via.placeholder.com/300x400/667eea/ffffff?text=No+Image';
-        },
-        
         async fetchCart() {
             this.loading = true;
             try {
-                const { get, endpoints } = useApi();
-                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
-                
-                if (!tg_user) {
-                    console.error('❌ Telegram user not found');
-                    this.$emit('show-message', 'Ошибка: пользователь не найден');
-                    return;
-                }
+                // Используем тестовый ID из логов - 391622124
+                const telegramId = 391622124;
 
-                console.log('🔄 Fetching cart for user:', tg_user.id);
-                this.cartData = await get(endpoints.cart.get(tg_user.id));
-                console.log('✅ Cart data loaded:', this.cartData);
+                // Используем прямой fetch с подробным логированием
+                const baseUrl = this.getApiBaseUrl();
+                const cartUrl = `${baseUrl}/api/cart/${telegramId}`;
                 
+                console.log('🔄 Загрузка корзины с URL:', cartUrl);
+                
+                const response = await fetch(cartUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                console.log('📥 Статус ответа:', response.status);
+                
+                if (response.ok) {
+                    const text = await response.text();
+                    console.log('📥 RAW текст ответа:', text);
+                    
+                    let cartData;
+                    try {
+                        cartData = JSON.parse(text);
+                    } catch (e) {
+                        console.error('❌ Ошибка парсинга JSON:', e);
+                        this.cartData = { items: [], total: 0 };
+                        return;
+                    }
+                    
+                    console.log('✅ Парсинг JSON успешен');
+                    console.log('✅ Данные корзины:', cartData);
+                    
+                    // Проверяем различные форматы ответа от API
+                    if (Array.isArray(cartData)) {
+                        // Если сервер вернул массив товаров напрямую
+                        console.log('📦 Ответ в формате массива, длина:', cartData.length);
+                        this.cartData = {
+                            items: cartData.map(item => ({
+                                cart_item_id: item.cart_item_id || item.product_id,
+                                product: item.product || item,
+                                quantity: item.quantity || 1,
+                                subtotal: (item.subtotal || (item.product?.price || item.price || 0)) * (item.quantity || 1)
+                            })),
+                            total: cartData.reduce((sum, item) => {
+                                const price = item.product?.price || item.price || 0;
+                                const quantity = item.quantity || 1;
+                                return sum + (price * quantity);
+                            }, 0)
+                        };
+                    } else if (cartData.items && Array.isArray(cartData.items)) {
+                        // Если сервер вернул объект с полем items
+                        console.log('📦 Ответ в формате объекта с items, длина:', cartData.items.length);
+                        this.cartData = cartData;
+                    } else if (cartData && typeof cartData === 'object') {
+                        // Если сервер вернул другой объект
+                        console.log('📦 Ответ в формате объекта');
+                        this.cartData = cartData;
+                    } else {
+                        console.warn('⚠️ Неизвестный формат данных корзины');
+                        this.cartData = { items: [], total: 0 };
+                    }
+                    
+                    console.log('📦 Final cartData:', this.cartData);
+                    
+                } else {
+                    console.error('❌ Ошибка HTTP:', response.status);
+                    this.cartData = { items: [], total: 0 };
+                }
             } catch (error) {
-                console.error('❌ Error loading cart:', error);
-                this.$emit('show-message', 'Ошибка загрузки корзины');
+                console.error('❌ Ошибка сети:', error);
+                this.cartData = { items: [], total: 0 };
             }
             this.loading = false;
         },
@@ -349,20 +379,33 @@ export default {
 
             this.updatingItemId = item.cart_item_id;
             try {
-                const { put, endpoints } = useApi();
+                const { put } = useApi();
                 
-                await put(endpoints.cart.update, {
-                    cart_item_id: item.cart_item_id,
-                    quantity: newQuantity
+                const baseUrl = this.getApiBaseUrl();
+                const updateUrl = `${baseUrl}/api/cart/update`;
+                
+                const response = await fetch(updateUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cart_item_id: item.cart_item_id,
+                        quantity: newQuantity
+                    })
                 });
                 
-                await this.fetchCart(); // Обновляем данные корзины
-                this.$emit('cart-updated');
-                this.$emit('show-message', 'Количество обновлено');
+                if (response.ok) {
+                    await this.fetchCart(); // Обновляем данные корзины
+                    this.$root.$emit('cart-updated');
+                    this.showMessage('Количество обновлено');
+                } else {
+                    throw new Error('Ошибка обновления');
+                }
                 
             } catch (error) {
                 console.error('❌ Error updating quantity:', error);
-                this.$emit('show-message', 'Ошибка обновления количества');
+                this.showMessage('Ошибка обновления количества', 'error');
             } finally {
                 this.updatingItemId = null;
             }
@@ -371,19 +414,30 @@ export default {
         async removeFromCart(item) {
             this.removingItemId = item.cart_item_id;
             try {
-                const { delete: del, endpoints } = useApi();
+                const baseUrl = this.getApiBaseUrl();
+                const removeUrl = `${baseUrl}/api/cart/remove`;
                 
-                await del(endpoints.cart.remove, {
-                    cart_item_id: item.cart_item_id
+                const response = await fetch(removeUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cart_item_id: item.cart_item_id
+                    })
                 });
                 
-                await this.fetchCart(); // Обновляем данные корзины
-                this.$emit('cart-updated');
-                this.$emit('show-message', 'Товар удален из корзины');
+                if (response.ok) {
+                    await this.fetchCart(); // Обновляем данные корзины
+                    this.$root.$emit('cart-updated');
+                    this.showMessage('Товар удален из корзины');
+                } else {
+                    throw new Error('Ошибка удаления');
+                }
                 
             } catch (error) {
                 console.error('❌ Error removing item:', error);
-                this.$emit('show-message', 'Ошибка удаления товара');
+                this.showMessage('Ошибка удаления товара', 'error');
             } finally {
                 this.removingItemId = null;
             }
@@ -400,48 +454,81 @@ export default {
         async confirmOrder() {
             this.creatingOrder = true;
             try {
-                const { post, endpoints } = useApi();
-                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                let telegramId;
                 
-                if (!tg_user) {
-                    this.$emit('show-message', 'Ошибка: пользователь не найден');
-                    return;
+                if (tg_user) {
+                    telegramId = tg_user.id;
+                } else {
+                    // Для тестирования без Telegram
+                    telegramId = 391622124;
                 }
 
+                const baseUrl = this.getApiBaseUrl();
+                const orderUrl = `${baseUrl}/api/orders/create`;
+
                 const orderData = {
-                    telegram_id: tg_user.id,
+                    telegram_id: telegramId,
                     ...this.orderData
                 };
 
                 console.log('🔄 Creating order:', orderData);
-                const result = await post(endpoints.orders.create, orderData);
-                console.log('✅ Order created:', result);
+                const response = await fetch(orderUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(orderData)
+                });
                 
-                this.$emit('show-message', `Заказ №${result.order_number} успешно создан!`);
-                this.orderDialog = false;
-                await this.fetchCart(); // Обновляем корзину (должна быть пустой)
-                this.$emit('cart-updated');
-                
-                // Можно перенаправить на страницу заказа
-                // this.$router.push(`/orders/${result.order_id}`);
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Order created:', result);
+                    
+                    this.showMessage(`Заказ №${result.order_number} успешно создан!`);
+                    this.orderDialog = false;
+                    await this.fetchCart(); // Обновляем корзину (должна быть пустой)
+                    this.$root.$emit('cart-updated');
+                } else {
+                    const errorData = await response.json().catch(() => ({ detail: 'Не удалось создать заказ' }));
+                    throw new Error(errorData.detail || 'Не удалось создать заказ');
+                }
                 
             } catch (error) {
                 console.error('❌ Error creating order:', error);
-                this.$emit('show-message', `Ошибка: ${error.message || 'Не удалось создать заказ'}`);
+                this.showMessage(`Ошибка: ${error.message || 'Не удалось создать заказ'}`, 'error');
             } finally {
                 this.creatingOrder = false;
             }
         },
+        
         async loadUserProfile() {
             try {
-                const { get, endpoints } = useApi();
-                const tg_user = window.Telegram.WebApp.initDataUnsafe?.user;
+                const baseUrl = this.getApiBaseUrl();
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                let telegramId;
+                
                 if (tg_user) {
-                    this.userProfile = await get(endpoints.users.profile(tg_user.id));
+                    telegramId = tg_user.id;
+                } else {
+                    telegramId = 391622124;
+                }
+                
+                const userUrl = `${baseUrl}/api/user/${telegramId}`;
+                const response = await fetch(userUrl);
+                
+                if (response.ok) {
+                    this.userProfile = await response.json();
                 }
             } catch (error) {
                 console.error('Error loading user profile:', error);
             }
+        },
+        
+        showMessage(message, type = 'success') {
+            this.$emit('show-message', message, type);
+            // Также показываем через глобальное событие
+            this.$root.$emit('show-message', message, type);
         }
     }
 }

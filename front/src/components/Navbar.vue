@@ -47,16 +47,59 @@ export default {
     methods: {
         async fetchCartCount() {
             try {
-                const { get, endpoints } = useApi();
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
                 
-                if (tg_user) {
-                    const cartData = await get(endpoints.cart.get(tg_user.id));
+                if (!tg_user) {
+                    console.warn('⚠️ Telegram user not found, using default ID for testing');
+                    // Для тестирования используем фиктивный ID
+                    const testUserId = 391622124;
+                    await this.fetchCartForUser(testUserId);
+                    return;
+                }
+                
+                await this.fetchCartForUser(tg_user.id);
+                
+            } catch (error) {
+                console.error('❌ Ошибка загрузки корзины для навбара:', error);
+                this.cartItemsCount = 0;
+            }
+        },
+        
+        async fetchCartForUser(telegramId) {
+            try {
+                const baseUrl = this.getApiBaseUrl();
+                const cartUrl = `${baseUrl}/api/cart/${telegramId}`;
+                
+                console.log('🔄 Загрузка корзины для навбара:', cartUrl);
+                
+                const response = await fetch(cartUrl);
+                
+                if (response.ok) {
+                    const cartData = await response.json();
                     this.cartItemsCount = cartData.items?.length || 0;
                     console.log('🛒 Cart count updated:', this.cartItemsCount);
+                } else {
+                    console.warn('⚠️ Не удалось загрузить корзину, статус:', response.status);
+                    this.cartItemsCount = 0;
                 }
             } catch (error) {
                 console.error('❌ Ошибка загрузки корзины:', error);
+                this.cartItemsCount = 0;
+            }
+        },
+        
+        getApiBaseUrl() {
+            if (import.meta.env.VITE_API_BASE_URL) {
+                return import.meta.env.VITE_API_BASE_URL;
+            }
+            
+            const hostname = window.location.hostname;
+            if (hostname.includes('github.dev')) {
+                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+            } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:8000';
+            } else {
+                return window.location.origin;
             }
         }
     }
