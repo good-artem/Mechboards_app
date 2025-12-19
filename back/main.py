@@ -194,17 +194,11 @@ async def auth_middleware(request: Request, call_next):
         '/api/test-search',
         '/api/test',
         '/api/test-images',
-<<<<<<< HEAD
         '/api/test/no-auth',
         '/assets',
         '/docs',
         '/openapi.json',
         '/api/debug/headers',
-=======
-        '/api/me',
-        '/api/test/no-auth',
-        '/api/test/with-auth'
->>>>>>> 757174750d78060e497ef2d95a24048a23631ab5
     ]
     
     # Проверяем, публичный ли эндпоинт
@@ -217,7 +211,6 @@ async def auth_middleware(request: Request, call_next):
     # Для защищенных эндпоинтов проверяем авторизацию
     init_data = request.headers.get('x-telegram-init-data')
     
-<<<<<<< HEAD
     # Для тестирования: если нет заголовка, разрешаем доступ (но в реальном приложении уберите это)
     if not init_data:
         print(f"⚠️ No Telegram auth header for protected endpoint: {request.url.path}")
@@ -266,32 +259,6 @@ async def auth_middleware(request: Request, call_next):
         # Добавляем данные пользователя в request state
         request.state.telegram_user = user_data
         
-=======
-    if not init_data:
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Требуется авторизация Telegram"},
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Expose-Headers": "*"
-            }
-        )
-    
-    try:
-        # Убедитесь, что verify_telegram_hash возвращает True для тестирования
-        # Временно для тестирования закомментируйте проверку
-        # if init_data and not verify_telegram_hash(init_data):
-        #     return JSONResponse(
-        #         status_code=401,
-        #         content={"detail": "Невалидная авторизация"},
-        #         headers={
-        #             "Access-Control-Allow-Origin": "*",
-        #             "Access-Control-Expose-Headers": "*"
-        #         }
-        #     )
-        
-        # Для тестирования - пропускаем запрос
->>>>>>> 757174750d78060e497ef2d95a24048a23631ab5
         response = await call_next(request)
         return response
         
@@ -610,12 +577,7 @@ async def add_to_cart(
 # main.py - исправленный эндпоинт корзины
 @app.get("/api/cart/{telegram_id}")
 async def get_cart(
-<<<<<<< HEAD
     telegram_id: int
-=======
-    telegram_id: int,
-    x_telegram_init_data: str = Header(None)
->>>>>>> 757174750d78060e497ef2d95a24048a23631ab5
 ):
     # Для тестирования временно отключаем проверку
     # user_data = verify_user_access(telegram_id, x_telegram_init_data)
