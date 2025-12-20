@@ -198,9 +198,14 @@
         </v-row>
 
         <!-- Диалог оформления заказа -->
-        <v-dialog v-model="orderDialog" max-width="500">
+        <v-dialog v-model="orderDialog" max-width="500" persistent>
             <v-card>
-                <v-card-title>Оформление заказа</v-card-title>
+                <v-card-title class="d-flex justify-space-between align-center">
+                    <span>Оформление заказа</span>
+                    <v-btn icon @click="orderDialog = false" :disabled="creatingOrder">
+                        <v-icon>mdi-close</v-icon>
+                    </v-btn>
+                </v-card-title>
                 <v-card-text>
                     <v-select
                         v-model="orderData.shipping_method"
@@ -209,19 +214,24 @@
                         variant="outlined"
                         density="comfortable"
                         class="mb-3"
+                        required
+                        :rules="[v => !!v || 'Выберите способ доставки']"
                     ></v-select>
                     
-                    <v-textarea
+                    <!-- Используем v-text-field вместо v-textarea для адреса -->
+                    <v-text-field
                         v-model="orderData.shipping_address"
                         label="Адрес доставки"
                         variant="outlined"
                         density="comfortable"
-                        rows="2"
                         class="mb-3"
-                        placeholder="Укажите адрес доставки"
+                        placeholder="Введите полный адрес доставки"
                         required
-                    ></v-textarea>
+                        :rules="[v => !!v || 'Адрес обязателен']"
+                        clearable
+                    ></v-text-field>
                     
+                    <!-- Используем v-textarea с persistent-placeholder для комментария -->
                     <v-textarea
                         v-model="orderData.customer_notes"
                         label="Комментарий к заказу"
@@ -229,6 +239,9 @@
                         density="comfortable"
                         rows="2"
                         placeholder="Дополнительная информация для заказа"
+                        persistent-placeholder
+                        clearable
+                        class="mb-3"
                     ></v-textarea>
                     
                     <div class="text-h6 font-weight-bold primary--text mt-3">
@@ -237,17 +250,25 @@
                 </v-card-text>
                 <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn color="grey" variant="text" @click="orderDialog = false">Отмена</v-btn>
+                    <v-btn color="grey" variant="text" @click="orderDialog = false" :disabled="creatingOrder">
+                        Отмена
+                    </v-btn>
                     <v-btn 
                         color="primary" 
                         @click="confirmOrder"
                         :loading="creatingOrder"
+                        :disabled="!orderData.shipping_address || !orderData.shipping_method"
                     >
                         Подтвердить заказ
                     </v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <!-- Уведомления -->
+        <v-snackbar v-model="showSnackbar" :color="snackbarColor" :timeout="3000">
+            {{ snackbarMessage }}
+        </v-snackbar>
     </v-container>
 </template>
 
@@ -284,7 +305,10 @@ export default {
             removingItemId: null,
             updatingServiceId: null,
             removingServiceId: null,
-            loading: false
+            loading: false,
+            showSnackbar: false,
+            snackbarMessage: '',
+            snackbarColor: 'success'
         }
     },
     computed: {
@@ -410,8 +434,8 @@ export default {
             this.updatingItemId = item.cart_item_id;
             
             try {
-                const { put, endpoints } = useApi();
-                await put(endpoints.cart.update, {
+                const { put } = useApi();
+                await put('/api/cart/update', {
                     cart_item_id: item.cart_item_id,
                     quantity: newQuantity
                 });
@@ -436,8 +460,9 @@ export default {
             this.removingItemId = item.cart_item_id;
             
             try {
-                const { del, endpoints } = useApi();
-                await del(endpoints.cart.remove, {
+                // Исправляем endpoint для удаления товара
+                const { del } = useApi();
+                await del('/api/cart/remove', {
                     cart_item_id: item.cart_item_id
                 });
                 
@@ -462,6 +487,7 @@ export default {
             
             try {
                 const { del } = useApi();
+                // Исправляем endpoint для удаления услуги
                 await del('/api/cart/remove_service', {
                     cart_service_item_id: serviceItem.cart_service_item_id
                 });
@@ -478,10 +504,25 @@ export default {
         },
         
         createOrder() {
+            this.orderData = {
+                shipping_method: 'Самовывоз',
+                shipping_address: '',
+                customer_notes: ''
+            };
             this.orderDialog = true;
         },
         
         async confirmOrder() {
+            if (!this.orderData.shipping_address.trim()) {
+                this.showMessage('Заполните адрес доставки', 'error');
+                return;
+            }
+            
+            if (!this.orderData.shipping_method) {
+                this.showMessage('Выберите способ доставки', 'error');
+                return;
+            }
+            
             this.creatingOrder = true;
             try {
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
@@ -493,15 +534,11 @@ export default {
                     telegramId = 391622124;
                 }
                 
-                if (!this.orderData.shipping_address.trim()) {
-                    throw new Error('Заполните адрес доставки');
-                }
-                
                 if (this.totalItemsCount === 0) {
                     throw new Error('Корзина пуста');
                 }
                 
-                const { post, endpoints } = useApi();
+                const { post } = useApi();
                 
                 const orderData = {
                     telegram_id: telegramId,
@@ -511,15 +548,24 @@ export default {
                 };
                 
                 console.log('🔄 Creating order with data:', orderData);
-                const result = await post(endpoints.orders.create, orderData);
+                const result = await post('/api/orders/create', orderData);
                 
                 if (result && result.order_number) {
-                    this.showMessage(`Заказ №${result.order_number} успешно создан!`);
+                    this.showMessage(`Заказ №${result.order_number} успешно создан!`, 'success');
                     this.orderDialog = false;
                     
-                    await this.fetchCart();
+                    // Очищаем корзину
+                    this.cartData = { 
+                        items: [], 
+                        service_items: [], 
+                        total: 0, 
+                        products_total: 0, 
+                        services_total: 0 
+                    };
+                    
                     this.$root.$emit('cart-updated');
                     
+                    // Перенаправляем в профиль с информацией о заказе
                     this.$router.push({ 
                         path: '/profile', 
                         query: { 
@@ -539,11 +585,14 @@ export default {
         },
         
         showMessage(message, type = 'success') {
-            if (this.$root && this.$root.$emit) {
-                this.$root.$emit('show-message', message, type);
-            } else {
-                console.log(`[${type.toUpperCase()}] ${message}`);
-            }
+            this.snackbarMessage = message;
+            this.snackbarColor = type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'success';
+            this.showSnackbar = true;
+            
+            // Автоматически скрываем уведомление через 3 секунды
+            setTimeout(() => {
+                this.showSnackbar = false;
+            }, 3000);
         }
     }
 }

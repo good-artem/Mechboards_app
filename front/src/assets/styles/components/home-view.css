@@ -4,6 +4,11 @@
     overflow-y: auto;
 }
 
+.mt-4{
+    align-self: center;
+    align-items: center;
+}
+
 .features-grid {
     margin: 0 -4px;
 }

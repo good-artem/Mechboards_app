@@ -190,14 +190,28 @@ export default {
         },
         
         openSupportChat() {
-            // Замените 'your_bot_username' на username вашего бота
-            const botUsername = 'MechboardsBot';
-            const supportUrl = `https://t.me/${botUsername}`;
-            
+        // Проверяем, находимся ли мы уже в мини-приложении Telegram
             if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.openTelegramLink(supportUrl);
+                // Если уже в чате с ботом, просто закрываем мини-приложение
+                if (window.location.href.includes('t.me') || document.referrer.includes('t.me')) {
+                window.Telegram.WebApp.close();
+                } else {
+                // Иначе открываем чат с ботом
+                const botUsername = 'MechboardsBot'; // Замените на ваш username
+                const chatUrl = `https://t.me/${botUsername}`;
+                
+                // Открываем ссылку через Telegram
+                window.Telegram.WebApp.openTelegramLink(chatUrl);
+                
+                // Через 1 секунду закрываем мини-приложение
+                setTimeout(() => {
+                    window.Telegram.WebApp.close();
+                }, 1000);
+                }
             } else {
-                window.open(supportUrl, '_blank');
+                // Для браузера - просто открываем ссылку
+                const botUsername = 'MechboardsBot';
+                window.open(`https://t.me/${botUsername}`, '_blank');
             }
         }
     }

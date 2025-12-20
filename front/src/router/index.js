@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { checkAdminAccess } from './admin-guard'
 
 const routes = [
   {
@@ -10,7 +11,6 @@ const routes = [
     path: '/catalog',
     name: 'catalog', 
     component: () => import('@/views/CatalogView.vue'),
-    // Можно добавить props для передачи параметров через URL
     props: (route) => ({
       category: route.query.category,
       filter: route.query.filter,
@@ -43,7 +43,6 @@ const routes = [
     component: () => import('@/views/AdminView.vue'),
     meta: { requiresAdmin: true }
   },
-  // Добавим catch-all route для 404
   {
     path: '/:pathMatch(.*)*',
     redirect: '/'
@@ -58,20 +57,12 @@ const router = createRouter({
 // Защита маршрутов для админа
 router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAdmin) {
-    try {
-      const { get } = await import('@/composables/useApi');
-      const api = get();
-      const result = await api.get('/api/admin/check');
-      
-      if (result.is_admin) {
-        next();
-      } else {
-        alert('Доступ запрещен. Требуются права администратора.');
-        next('/profile');
-      }
-    } catch (error) {
-      console.error('Ошибка проверки прав администратора:', error);
-      alert('Ошибка авторизации. Пожалуйста, войдите через Telegram.');
+    const isAdmin = await checkAdminAccess();
+    
+    if (isAdmin) {
+      next();
+    } else {
+      alert('Доступ запрещен. Требуются права администратора.');
       next('/profile');
     }
   } else {

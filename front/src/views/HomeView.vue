@@ -84,7 +84,7 @@
                                     <v-icon size="20" color="success">mdi-check-circle</v-icon>
                                 </template>
                                 <v-list-item-title class="text-caption">
-                                    Быстрая доставка по РФ
+                                    Быстрая доставка по РБ и всему миру
                                 </v-list-item-title>
                             </v-list-item>
                             <v-list-item class="benefit-item">
@@ -117,17 +117,14 @@
                 </v-btn>
             </v-col>
         </v-row>
-        <ConnectionTest /> <!--  Временно для проверки подключения -->
     </v-container>
 </template>
 
 <script>
-import ConnectionTest from '@/components/ConnectionTest.vue'
 
 export default {
     name: 'HomeView',
     components: {
-        ConnectionTest
     }
 }
 </script>

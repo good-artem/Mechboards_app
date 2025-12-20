@@ -6,12 +6,10 @@ export function useApi() {
   const error = ref(null)
 
   const getTelegramInitData = () => {
-    // Получаем initData из Telegram WebApp
     if (window.Telegram?.WebApp?.initData) {
       return window.Telegram.WebApp.initData;
     }
     
-    // Для разработки в Codespaces
     if (import.meta.env.DEV) {
       const testUserId = 391622124;
       const mockUser = {
@@ -22,9 +20,7 @@ export function useApi() {
         language_code: "ru"
       };
       const authDate = Math.floor(Date.now() / 1000);
-      const dataCheckString = `auth_date=${authDate}\nuser=${JSON.stringify(mockUser)}`;
       
-      // Генерируем тестовый хэш (в продакшене это будет делать Telegram)
       return `user=${JSON.stringify(mockUser)}&auth_date=${authDate}&hash=fake_hash_for_dev`;
     }
     
@@ -60,12 +56,11 @@ export function useApi() {
     try {
       let url = endpoint;
       
-      // Если endpoint начинается с / или не содержит http, считаем его относительным
       if (endpoint.startsWith('/') || !endpoint.startsWith('http')) {
         url = buildUrlWithParams(endpoint, options.params);
       }
       
-      console.log('🔄 API Request to:', url);
+      console.log('🔄 API Request to:', url, 'Method:', options.method || 'GET');
       
       const headers = {
         'Content-Type': 'application/json',
@@ -78,8 +73,8 @@ export function useApi() {
         method: options.method || 'GET'
       };
 
-      // Добавляем тело запроса для POST/PUT
-      if (options.body && ['POST', 'PUT', 'PATCH'].includes(fetchOptions.method)) {
+      // Добавляем тело запроса для POST/PUT/PATCH/DELETE
+      if (options.body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(fetchOptions.method)) {
         fetchOptions.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
       }
 
@@ -103,7 +98,6 @@ export function useApi() {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // Обрабатываем разные типы ответов
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
@@ -118,7 +112,6 @@ export function useApi() {
       error.value = err.message;
       console.error('❌ API request failed:', err);
       
-      // Показываем понятные сообщения об ошибках
       if (err.message.includes('авторизация')) {
         alert('❌ Ошибка авторизации. Пожалуйста, войдите через Telegram.');
       } else if (err.message.includes('запрещен')) {
@@ -139,8 +132,15 @@ export function useApi() {
   const put = (endpoint, data, options = {}) =>
     apiRequest(endpoint, { ...options, method: 'PUT', body: data });
   
-  const del = (endpoint, data, options = {}) =>
-    apiRequest(endpoint, { ...options, method: 'DELETE', body: data });
+  // ИСПРАВЛЕНИЕ: Правильно обрабатываем DELETE запросы
+  const del = (endpoint, data = null, options = {}) => {
+    // Для DELETE запросов, если есть данные, отправляем их в body
+    const requestOptions = { ...options, method: 'DELETE' };
+    if (data) {
+      requestOptions.body = data;
+    }
+    return apiRequest(endpoint, requestOptions);
+  };
 
   const getBaseUrl = () => API_CONFIG.getBaseUrl();
 
@@ -150,7 +150,7 @@ export function useApi() {
     get,
     post,
     put,
-    delete: del,
+    delete: del,  // Используем delete как alias для del
     endpoints: API_CONFIG.endpoints,
     getBaseUrl
   }

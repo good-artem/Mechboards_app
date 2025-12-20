@@ -307,6 +307,8 @@ async def get_user(telegram_id: int, request: Request):
             # Используем данные из initData, если они были проверены
             username = f'user_{telegram_id}'
             name = f'User {telegram_id}'
+
+            is_admin = (telegram_id == 391622124)
             if 'user_data' in locals() and user_data: # Проверяем, была ли переменная user_data определена
                  username = user_data.get('username', username)
                  name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
@@ -317,7 +319,8 @@ async def get_user(telegram_id: int, request: Request):
                 telegram_id=telegram_id,
                 username=username,
                 name=name,
-                is_active=True
+                is_active=True,
+                is_admin=is_admin
             )
             session.add(user)
             await session.commit()
@@ -530,9 +533,7 @@ async def update_cart_item(
         return {"status": "success", "message": "Cart updated"}
 
 @app.delete("/api/cart/remove")
-async def remove_cart_item(
-    request: RemoveCartItemRequest
-):
+async def remove_cart_item(request: RemoveCartItemRequest):
     async with async_session() as session:
         # Находим элемент корзины
         result = await session.execute(
@@ -614,13 +615,37 @@ async def create_order(
                 total_price=float(product.price) * item.quantity
             )
             session.add(order_item)
-        
-        # Очищаем корзину
-        await session.execute(
-            CartItem.__table__.delete().where(CartItem.cart_id == cart.cart_id)
-        )
-        await session.commit()
-        
+                # ДОБАВЛЯЕМ: Создаем заказы на услуги из корзины
+            # Получаем услуги из корзины
+            cart_service_items_result = await session.execute(
+                select(CartServiceItem).where(CartServiceItem.cart_id == cart.cart_id)
+            )
+            cart_service_items = cart_service_items_result.scalars().all()
+            
+            for service_item in cart_service_items:
+                service_result = await session.execute(
+                    select(Service).where(Service.service_id == service_item.service_id)
+                )
+                service = service_result.scalar_one()
+                
+                # Создаем заказ на услугу
+                service_order = ServiceOrder(
+                    user_id=user.user_id,
+                    service_id=service_item.service_id,
+                    notes=service_item.notes,
+                    price=float(service.price),
+                    status=OrderStatus.CREATED
+                )
+                session.add(service_order)
+            
+            await session.execute(
+                CartItem.__table__.delete().where(CartItem.cart_id == cart.cart_id)
+            )
+            await session.execute(
+                CartServiceItem.__table__.delete().where(CartServiceItem.cart_id == cart.cart_id)
+            )
+            
+            await session.commit() 
         return {
             "status": "success",
             "order_number": order_number,
@@ -884,18 +909,17 @@ async def add_service_to_cart(request: AddServiceToCartRequest):
         existing_item = existing_item_result.scalar_one_or_none()
         
         if existing_item:
-            # Обновляем количество
-            new_quantity = existing_item.quantity + request.quantity
-            existing_item.quantity = new_quantity
+            # ОБНОВЛЕНИЕ: Не позволяем добавлять больше одной услуги
+            # Просто обновляем заметки, если нужно
             if request.notes:
                 existing_item.notes = request.notes
-            message = f"Количество обновлено: {new_quantity} шт."
+            message = "Услуга уже в корзине (не более одной)"
         else:
-            # Добавляем новую услугу в корзину
+            # Добавляем новую услугу в корзину, но только одну
             cart_service_item = CartServiceItem(
                 cart_id=cart.cart_id,
                 service_id=request.service_id,
-                quantity=request.quantity,
+                quantity=1,  # Всегда 1 для услуг
                 notes=request.notes
             )
             session.add(cart_service_item)
@@ -903,7 +927,7 @@ async def add_service_to_cart(request: AddServiceToCartRequest):
         
         await session.commit()
         return {"status": "success", "message": message}
-
+    
 # Добавьте эндпоинт для обновления услуги в корзине:
 @app.put("/api/cart/update_service")
 async def update_cart_service_item(request: UpdateCartServiceItemRequest):
@@ -940,7 +964,6 @@ async def remove_cart_service_item(request: RemoveCartServiceItemRequest):
         await session.delete(cart_service_item)
         await session.commit()
         return {"status": "success", "message": "Service removed from cart"}
-
 
 if __name__ == "__main__":
     import uvicorn
