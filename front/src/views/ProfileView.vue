@@ -107,25 +107,6 @@
                 </v-card>
             </v-col>
         </v-row>
-        
-        <!-- Кнопка админ панели -->
-        <v-container v-if="user.is_admin" class="admin-button-container mt-4">
-            <v-card elevation="2" class="pa-3">
-                <v-btn 
-                    color="primary"
-                    @click="goToAdmin"
-                    block
-                    size="large"
-                    class="admin-button"
-                >
-                    <v-icon left>mdi-shield-account</v-icon>
-                    Админ панель
-                </v-btn>
-                <div class="text-caption text-center text-grey mt-2">
-                    Доступ к управлению магазином и заказами
-                </div>
-            </v-card>
-        </v-container>
 
         <!-- Заказы товаров -->
         <v-card v-if="userOrders.length > 0" class="mt-4" elevation="1">
@@ -294,6 +275,24 @@
                 </v-card-text>
             </v-card>
         </v-dialog>
+
+        <v-card v-if="user.is_admin" class="mt-4" elevation="1">
+            <v-card-text class="text-center pa-6">
+                <v-icon size="48" color="primary" class="mb-3">mdi-shield-account</v-icon>
+                <div class="text-h6 font-weight-bold mb-2">Администратор</div>
+                <div class="text-body-2 text-grey mb-4">У вас есть доступ к панели администратора</div>
+                <v-btn 
+                    color="primary"
+                    @click="goToAdmin"
+                    block
+                    size="large"
+                    class="admin-button"
+                >
+                    <v-icon left>mdi-shield-account</v-icon>
+                    Перейти в админ панель
+                </v-btn>
+            </v-card-text>
+        </v-card>
     </v-container>
 </template>
 
@@ -714,15 +713,6 @@ export default {
 .profile-divider {
     margin: 0 !important;
     border-color: var(--tg-theme-hint-color, #e0e0e0) !important;
-}
-
-.admin-button-container {
-    position: fixed;
-    bottom: 60px; /* Выше навбара */
-    left: 0;
-    right: 0;
-    z-index: 100;
-    padding: 16px;
 }
 
 .admin-button {

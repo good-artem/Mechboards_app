@@ -209,6 +209,16 @@
                 <v-card-text>
                     <v-select
                         v-model="orderData.shipping_method"
+                        :items="isServiceOnlyOrder ? serviceShippingMethods : shippingMethods"
+                        label="Способ получения"
+                        variant="outlined"
+                        density="comfortable"
+                        class="mb-3"
+                        required
+                        :rules="[v => !!v || 'Выберите способ получения']"
+                    ></v-select>
+                    <v-select
+                        v-model="orderData.shipping_method"
                         :items="shippingMethods"
                         label="Способ доставки"
                         variant="outlined"
@@ -263,6 +273,7 @@
                     </v-btn>
                 </v-card-actions>
             </v-card>
+            
         </v-dialog>
 
         <!-- Уведомления -->
@@ -301,6 +312,11 @@ export default {
                 'Европочта',
                 'СДЭК'
             ],
+            serviceShippingMethods: [
+                'Онлайн консультация',
+                'Самовывоз (принесите клавиатуру)',
+                'Курьерская доставка (если требуется)'
+            ],
             updatingItemId: null,
             removingItemId: null,
             updatingServiceId: null,
@@ -308,7 +324,9 @@ export default {
             loading: false,
             showSnackbar: false,
             snackbarMessage: '',
-            snackbarColor: 'success'
+            snackbarColor: 'success',
+            // Добавляем переменную для отслеживания типа заказа
+            isServiceOnlyOrder: false
         }
     },
     computed: {
@@ -460,7 +478,6 @@ export default {
             this.removingItemId = item.cart_item_id;
             
             try {
-                // Исправляем endpoint для удаления товара
                 const { del } = useApi();
                 await del('/api/cart/remove', {
                     cart_item_id: item.cart_item_id
@@ -487,7 +504,6 @@ export default {
             
             try {
                 const { del } = useApi();
-                // Исправляем endpoint для удаления услуги
                 await del('/api/cart/remove_service', {
                     cart_service_item_id: serviceItem.cart_service_item_id
                 });
@@ -504,23 +520,42 @@ export default {
         },
         
         createOrder() {
+            // Определяем тип заказа: только услуги или смешанный
+            const hasProducts = this.cartData.items && this.cartData.items.length > 0;
+            const hasServices = this.cartData.service_items && this.cartData.service_items.length > 0;
+            
+            this.isServiceOnlyOrder = !hasProducts && hasServices;
+            
+            // Для заказов только услуг можно упростить данные доставки
             this.orderData = {
-                shipping_method: 'Самовывоз',
-                shipping_address: '',
+                shipping_method: this.isServiceOnlyOrder ? 'Онлайн консультация' : 'Самовывоз',
+                shipping_address: this.isServiceOnlyOrder ? 'Не требуется' : '',
                 customer_notes: ''
             };
             this.orderDialog = true;
         },
         
         async confirmOrder() {
-            if (!this.orderData.shipping_address.trim()) {
-                this.showMessage('Заполните адрес доставки', 'error');
-                return;
+            // Для заказов только услуг проверяем только метод, адрес не нужен
+            if (!this.isServiceOnlyOrder) {
+                if (!this.orderData.shipping_address.trim()) {
+                    this.showMessage('Заполните адрес доставки', 'error');
+                    return;
+                }
             }
             
             if (!this.orderData.shipping_method) {
                 this.showMessage('Выберите способ доставки', 'error');
                 return;
+            }
+            
+            // Для заказов только услуг предлагаем более подходящие методы
+            if (this.isServiceOnlyOrder) {
+                if (!this.orderData.shipping_method.includes('консультация') && 
+                    !this.orderData.shipping_method.includes('самовывоз')) {
+                    this.showMessage('Для услуг выберите способ "Онлайн консультация" или "Самовывоз"', 'warning');
+                    return;
+                }
             }
             
             this.creatingOrder = true;
@@ -540,6 +575,7 @@ export default {
                 
                 const { post } = useApi();
                 
+                // Подготовка данных заказа
                 const orderData = {
                     telegram_id: telegramId,
                     shipping_method: this.orderData.shipping_method,
@@ -547,7 +583,19 @@ export default {
                     customer_notes: this.orderData.customer_notes
                 };
                 
+                // Для заказов только услуг добавляем дополнительную информацию
+                if (this.isServiceOnlyOrder) {
+                    orderData.customer_notes = (orderData.customer_notes || '') + 
+                        '\n[ЗАКАЗ ТОЛЬКО УСЛУГ] Пожалуйста, свяжитесь для обсуждения деталей.';
+                }
+                
                 console.log('🔄 Creating order with data:', orderData);
+                console.log('📦 Cart contains:', {
+                    products: this.cartData.items?.length || 0,
+                    services: this.cartData.service_items?.length || 0,
+                    isServiceOnly: this.isServiceOnlyOrder
+                });
+                
                 const result = await post('/api/orders/create', orderData);
                 
                 if (result && result.order_number) {
@@ -570,7 +618,8 @@ export default {
                         path: '/profile', 
                         query: { 
                             success: 'order_created', 
-                            orderNumber: result.order_number 
+                            orderNumber: result.order_number,
+                            isServiceOnly: this.isServiceOnlyOrder
                         } 
                     });
                 } else {
@@ -578,7 +627,19 @@ export default {
                 }
             } catch (error) {
                 console.error('❌ Error creating order:', error);
-                this.showMessage(`Ошибка: ${error.message || 'Не удалось создать заказ'}`, 'error');
+                
+                // Более информативные сообщения об ошибках
+                let errorMessage = error.message || 'Не удалось создать заказ';
+                
+                if (error.message.includes('Cart is empty')) {
+                    errorMessage = 'Корзина пуста. Добавьте товары или услуги перед оформлением заказа.';
+                } else if (error.message.includes('не найдены') || error.message.includes('not found')) {
+                    errorMessage = 'Ошибка при обработке заказа. Пожалуйста, обновите страницу и попробуйте снова.';
+                } else if (error.message.includes('network') || error.message.includes('Network')) {
+                    errorMessage = 'Ошибка соединения с сервером. Проверьте подключение к интернету.';
+                }
+                
+                this.showMessage(`Ошибка: ${errorMessage}`, 'error');
             } finally {
                 this.creatingOrder = false;
             }

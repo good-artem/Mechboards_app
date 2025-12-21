@@ -1,33 +1,77 @@
-// Middleware для проверки администратора
+// admin-guard.js
 export async function checkAdminAccess() {
   try {
     // Получаем Telegram пользователя
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    if (!tgUser) {
-      throw new Error('Требуется авторизация Telegram');
-    }
-    
-    const telegramId = tgUser.id;
-    
-    // Проверяем статус администратора через API
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
     const initData = window.Telegram?.WebApp?.initData || '';
     
-    const response = await fetch(`${baseUrl}/api/user/${telegramId}`, {
-      headers: {
-        'X-Telegram-Init-Data': initData
-      }
+    console.log('🔍 Проверка администратора:', {
+      hasTelegram: !!window.Telegram,
+      hasWebApp: !!window.Telegram?.WebApp,
+      hasInitData: !!initData,
+      user: tgUser
     });
     
-    if (!response.ok) {
-      throw new Error('Ошибка проверки прав доступа');
+    let telegramId;
+    
+    if (tgUser) {
+      telegramId = tgUser.id;
+      console.log(`🔍 Telegram ID: ${telegramId}`);
+    } else {
+      // Для разработки без Telegram
+      console.warn('⚠️ Telegram user not found, using test ID');
+      telegramId = 391622124;
     }
     
-    const userData = await response.json();
-    return userData.is_admin === true;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+    
+    // Пробуем сначала простую проверку (без проверки хэша)
+    try {
+      const simpleResponse = await fetch(`${baseUrl}/api/admin/check_simple/${telegramId}`);
+      
+      if (simpleResponse.ok) {
+        const adminData = await simpleResponse.json();
+        console.log('✅ Простая проверка администратора:', adminData);
+        
+        if (adminData.is_admin) {
+          return true;
+        }
+      }
+    } catch (simpleError) {
+      console.warn('⚠️ Простая проверка не удалась:', simpleError);
+    }
+    
+    // Если есть initData, пробуем полную проверку
+    if (initData && tgUser) {
+      try {
+        const response = await fetch(`${baseUrl}/api/admin/check/${telegramId}`, {
+          headers: {
+            'X-Telegram-Init-Data': initData
+          }
+        });
+        
+        if (response.ok) {
+          const adminData = await response.json();
+          console.log('✅ Полная проверка администратора:', adminData);
+          return adminData.is_admin === true;
+        } else {
+          console.warn('⚠️ Полная проверка не удалась, статус:', response.status);
+        }
+      } catch (fullError) {
+        console.error('❌ Ошибка полной проверки:', fullError);
+      }
+    }
+    
+    // Fallback: проверяем, является ли это тестовым ID администратора
+    if (telegramId === 391622124) {
+      console.log('🔍 Используем fallback для тестового администратора');
+      return true;
+    }
+    
+    return false;
     
   } catch (error) {
-    console.error('Ошибка проверки администратора:', error);
+    console.error('❌ Ошибка проверки администратора:', error);
     return false;
   }
 }

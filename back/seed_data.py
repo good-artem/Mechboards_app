@@ -339,37 +339,37 @@ async def seed_database():
             
             print("✅ Новости обновлены/созданы")
 
+            # Создаем администратора по умолчанию
+            admin_telegram_id = 391622124
+            result = await session.execute(
+                select(User).where(User.telegram_id == admin_telegram_id)
+            )
+            admin_user = result.scalar_one_or_none()
+            
+            if admin_user:
+                # Обновляем существующего пользователя
+                admin_user.is_admin = True
+                print(f"✅ Пользователь {admin_telegram_id} назначен администратором")
+            else:
+                # Создаем нового администратора
+                admin_user = User(
+                    telegram_id=admin_telegram_id,
+                    username="admin_user",
+                    name="Администратор",
+                    is_active=True,
+                    is_admin=True
+                )
+                session.add(admin_user)
+                print(f"✅ Создан администратор с ID {admin_telegram_id}")
+            
             await session.commit()
             print("✅ База данных успешно обновлена!")
-
         except Exception as e:
             await session.rollback()
             print(f"❌ Ошибка при обновлении базы: {e}")
             import traceback # Добавляем вывод полного стека ошибок
             traceback.print_exc()
             raise
-    # Создаем администратора по умолчанию
-    admin_telegram_id = 391622124
-    result = await session.execute(
-        select(User).where(User.telegram_id == admin_telegram_id)
-    )
-    admin_user = result.scalar_one_or_none()
-    
-    if admin_user:
-        # Обновляем существующего пользователя
-        admin_user.is_admin = True
-        print(f"✅ Пользователь {admin_telegram_id} назначен администратором")
-    else:
-        # Создаем нового администратора
-        admin_user = User(
-            telegram_id=admin_telegram_id,
-            username="admin_user",
-            name="Администратор",
-            is_active=True,
-            is_admin=True
-        )
-        session.add(admin_user)
-        print(f"✅ Создан администратор с ID {admin_telegram_id}")
     
     await session.commit()
 # ИЗМЕНИТЕ вызов в конце файла:
