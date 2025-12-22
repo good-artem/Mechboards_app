@@ -108,6 +108,22 @@
             </v-col>
         </v-row>
 
+        <v-card class="pa-3 mt-3">
+            <v-card-title>Поддержка</v-card-title>
+            <v-card-text>
+                <p>Есть вопросы или нужна помощь? Напишите нам в Telegram!</p>
+                <v-btn 
+                    color="primary" 
+                    @click="openTelegramSupport"
+                    block
+                    class="mt-2"
+                >
+                    <v-icon left>mdi-telegram</v-icon>
+                    Написать в поддержку
+                </v-btn>
+            </v-card-text>
+        </v-card>
+
         <!-- Заказы товаров -->
         <v-card v-if="userOrders.length > 0" class="mt-4" elevation="1">
             <v-card-title class="d-flex align-center">
@@ -655,82 +671,33 @@ export default {
             setTimeout(() => {
                 this.snackbar = false;
             }, 3000);
+        },
+        async openTelegramSupport() {
+            try {
+                const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+                const telegramId = tg_user?.id;
+                
+                if (!telegramId) {
+                    alert('Пожалуйста, войдите через Telegram');
+                    return;
+                }
+                
+                // Открываем чат с ботом
+                const botUsername = "MechboardsBot"; // Замените на username вашего бота
+                const url = `https://t.me/${botUsername}?start=support`;
+                
+                // В Telegram WebApp можно открыть ссылку
+                if (window.Telegram?.WebApp?.openLink) {
+                    window.Telegram.WebApp.openLink(url);
+                } else {
+                    window.open(url, '_blank');
+                }
+                
+            } catch (error) {
+                console.error('Ошибка открытия поддержки:', error);
+                alert('Не удалось открыть чат поддержки');
+            }
         }
     }
 }
 </script>
-
-<style scoped>
-.profile-container {
-    padding: 16px 8px;
-    padding-bottom: 80px; /* Отступ для навбара */
-}
-
-.profile-card {
-    background: var(--tg-theme-bg-color, #ffffff) !important;
-    color: var(--tg-theme-text-color, #000000) !important;
-    border-radius: 12px;
-}
-
-.profile-title {
-    color: var(--tg-theme-text-color, #000000) !important;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 20px 16px 16px !important;
-}
-
-.profile-avatar {
-    margin-bottom: 8px;
-}
-
-.avatar-image {
-    object-fit: cover;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-}
-
-.profile-content {
-    color: var(--tg-theme-text-color, #000000) !important;
-    padding: 8px 0 !important;
-}
-
-.profile-list {
-    background: var(--tg-theme-bg-color, #ffffff) !important;
-    color: var(--tg-theme-text-color, #000000) !important;
-    padding: 0 !important;
-}
-
-.profile-list-item {
-    color: var(--tg-theme-text-color, #000000) !important;
-    padding: 12px 16px !important;
-    min-height: 56px !important;
-}
-
-.profile-divider {
-    margin: 0 !important;
-    border-color: var(--tg-theme-hint-color, #e0e0e0) !important;
-}
-
-.admin-button {
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* Для десктопной версии */
-@media (min-width: 768px) {
-    .profile-container {
-        max-width: 600px;
-        margin: 0 auto;
-    }
-    
-    .admin-button-container {
-        position: relative;
-        bottom: auto;
-        padding: 16px 0;
-    }
-}
-</style>

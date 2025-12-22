@@ -1,9 +1,9 @@
 .with-news {
-  margin-top: 150px;
+  padding-top: 160px;
 }
 
 .without-news {
-  margin-top: 0;
+  padding-top: 20px;
 }
 
 .filters-bar {
@@ -11,38 +11,85 @@
     top: 0;
     z-index: 90;
     background: var(--tg-theme-bg-color, #ffffff);
-    margin: 0 -16px;
-    padding: 0 16px;
+    margin: 0 -8px;
+    padding: 8px;
     border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
 }
 
 .filters-panel {
-    position: sticky;
-    top: 60px;
-    z-index: 89;
-    margin: 0 -16px;
-    padding: 0 16px;
     background: var(--tg-theme-bg-color, #ffffff);
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    margin: 0 -8px;
+    padding: 8px;
 }
 
 .categories-grid {
-    max-height: calc(100vh - 300px);
-    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 0 -4px;
 }
 
 .telegram-select .v-field {
-    background: var(--tg-theme-secondary-bg-color, #f1f1f1) !important;
+    background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+    color: var(--tg-theme-text-color, #000000) !important;
 }
 
 .filter-btn, .back-btn {
     color: var(--tg-theme-button-color, #2481cc) !important;
 }
 
-/* Добавьте эти стили */
-.container {
-    padding-bottom: 120px; /* Отступ для навбара с поиском */
+.products-container {
+    margin-top: 16px;
+    min-height: 300px;
 }
 
-.products-container {
-    min-height: calc(100vh - 180px); /* Учитываем высоту навбара */
+/* Исправление перекрытия текста в продуктах */
+.product-card .product-name {
+    display: -webkit-box;
+    display: -moz-box;
+    display: box;
+    -webkit-line-clamp: 2;
+    -moz-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    -moz-box-orient: vertical;
+    box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.3;
+    max-height: 2.6em;
+}
+
+/* Адаптация для маленьких экранов */
+@media (max-width: 600px) {
+    .with-news {
+        padding-top: 150px;
+    }
+    
+    .categories-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+    
+    .filters-bar {
+        padding: 6px;
+        margin: 0 -4px;
+    }
+    
+    .filters-panel {
+        padding: 6px;
+        margin: 0 -4px;
+    }
+    
+    .products-container {
+        margin-top: 12px;
+    }
+}
+
+@media (max-width: 400px) {
+    .categories-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }

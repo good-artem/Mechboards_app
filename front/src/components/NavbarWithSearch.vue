@@ -17,6 +17,7 @@
                 class="search-field"
                 rounded
                 elevation="2"
+                :style="{ '--tg-theme-bg-color': '#ffffff', '--tg-theme-text-color': '#000000' }"
             >
             </v-text-field>
         </div>
@@ -127,8 +128,8 @@ export default {
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
                 const telegramId = tg_user?.id || 391622124;
                 
-                const { get, endpoints } = useApi();
-                const cartData = await get(endpoints.cart.get(telegramId));
+                const { get } = useApi();
+                const cartData = await get(`/api/cart/${telegramId}`);
                 
                 const itemsCount = cartData.items?.length || 0;
                 const serviceItemsCount = cartData.service_items?.length || 0;
@@ -143,56 +144,5 @@ export default {
 </script>
 
 <style scoped>
-.navbar-with-search {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-}
 
-/* Поиск - ПОВЕРХ кнопок, но прижат к ним сверху */
-.search-container {
-    position: absolute;
-    bottom: 56px; /* Высота кнопок навигации */
-    left: 0;
-    right: 0;
-    padding: 8px;
-    background: var(--tg-theme-bg-color, #ffffff);
-    border-bottom: 1px solid var(--tg-theme-divider-color, rgba(0, 0, 0, 0.12));
-    z-index: 1001;
-}
-
-/* Кнопки навигации СНИЗУ */
-.navigation-buttons {
-    height: 56px;
-    background: var(--tg-theme-bg-color, #ffffff);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    position: relative;
-    z-index: 1000;
-}
-
-.search-field {
-    background-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
-    border-radius: 12px;
-}
-
-/* Адаптивные стили */
-@media (max-width: 600px) {
-    .search-container {
-        padding: 6px;
-        bottom: 48px;
-    }
-    
-    .navigation-buttons {
-        height: 48px;
-    }
-}
-
-/* Для iOS Safari */
-@supports (-webkit-touch-callout: none) {
-    .navbar-with-search {
-        padding-bottom: env(safe-area-inset-bottom);
-    }
-}
 </style>

@@ -613,7 +613,7 @@ export default {
                         services_total: 0 
                     };
                     
-                    this.$root.$emit('cart-updated');
+                    setTimeout(() => {this.$root.$emit('cart-updated')}, 100);
                     
                     // Перенаправляем в профиль с информацией о заказе
                     this.$router.push({ 

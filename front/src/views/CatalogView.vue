@@ -727,18 +727,3 @@ export default {
     }
 }
 </script>
-
-<style scoped>
-/* В конце CatalogView.vue, в секции <style scoped> */
-.container {
-    padding-bottom: 60px; /* Только для кнопок, поиск теперь над ними */
-}
-
-.with-news {
-    padding-top: 60px;
-}
-
-.without-news {
-    padding-top: 20px;
-}
-</style>

@@ -614,6 +614,7 @@ async def update_cart_item(
 
 @app.delete("/api/cart/remove")
 async def remove_cart_item(request: RemoveCartItemRequest):
+    """Удалить товар из корзины"""
     async with async_session() as session:
         # Находим элемент корзины
         result = await session.execute(
@@ -627,7 +628,6 @@ async def remove_cart_item(request: RemoveCartItemRequest):
         await session.delete(cart_item)
         await session.commit()
         return {"status": "success", "message": "Item removed from cart"}
-
 @app.post("/api/orders/create")
 async def create_order(
     request: CreateOrderRequest
@@ -1073,6 +1073,7 @@ async def update_cart_service_item(request: UpdateCartServiceItemRequest):
 # Добавьте эндпоинт для удаления услуги из корзины:
 @app.delete("/api/cart/remove_service")
 async def remove_cart_service_item(request: RemoveCartServiceItemRequest):
+    """Удалить услугу из корзины"""
     async with async_session() as session:
         # Находим элемент корзины с услугой
         result = await session.execute(
@@ -1086,7 +1087,6 @@ async def remove_cart_service_item(request: RemoveCartServiceItemRequest):
         await session.delete(cart_service_item)
         await session.commit()
         return {"status": "success", "message": "Service removed from cart"}
-
 # Добавить в main.py, после других эндпоинтов
 @app.get("/api/admin/check/{telegram_id}")
 async def check_admin(telegram_id: int, request: Request):

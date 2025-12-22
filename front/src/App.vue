@@ -122,30 +122,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.app-loading {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--tg-theme-bg-color, #ffffff);
-  z-index: 9999;
-}
-
-.loading-text {
-  margin-top: 16px;
-  font-size: 16px;
-  color: var(--tg-theme-text-color, #000000);
-}
-
-.main-content {
-  min-height: 100vh;
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-</style>

@@ -1,14 +1,19 @@
-@import './global.css';
+/* Основные стили для Telegram Mini App */
 @import './telegram-theme.css';
-@import './app.css'; 
-@import './components/catalog.css';
-@import './components/product-card.css';
+@import './app.css';
+@import './responsive.css';
+
+/* Компоненты */
+@import './components/navbarwithsearch.css';
 @import './components/news-carousel.css';
 @import './components/category-card.css';
+@import './components/product-card.css';
+@import './components/product-gallery.css';
+
+/* Views */
 @import './components/home-view.css';
 @import './components/catalog-view.css';
 @import './components/cart-view.css';
-@import './components/search-bar.css';
-@import './components/navbar.css';
 @import './components/profile-view.css';
-@import './components/support-view.css';
+@import './components/services-view.css';
+@import './components/admin-view.css';

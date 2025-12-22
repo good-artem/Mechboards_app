@@ -1,0 +1,79 @@
+.navbar-with-search {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--tg-theme-bg-color);
+}
+
+.search-container {
+  position: absolute;
+  bottom: 56px;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: var(--tg-theme-bg-color);
+  border-bottom: 1px solid var(--tg-theme-hint-color);
+  z-index: 1001;
+}
+
+.navigation-buttons {
+  height: 56px;
+  background: var(--tg-theme-bg-color);
+  border-top: 1px solid var(--tg-theme-hint-color);
+  position: relative;
+  z-index: 1000;
+}
+
+.search-field {
+  background-color: var(--tg-theme-secondary-bg-color) !important;
+  color: var(--tg-theme-text-color) !important;
+  border-radius: 12px;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 600px) {
+  .search-container {
+    padding: 6px;
+    bottom: 48px;
+  }
+  
+  .navigation-buttons {
+    height: 48px;
+  }
+  
+  .search-field {
+    font-size: 14px;
+  }
+}
+
+/* Для iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .navbar-with-search {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Темная тема для элементов навбара */
+:deep(.v-text-field .v-field) {
+  background-color: var(--tg-theme-secondary-bg-color) !important;
+  color: var(--tg-theme-text-color) !important;
+}
+
+:deep(.v-text-field .v-field__input) {
+  color: var(--tg-theme-text-color) !important;
+}
+
+:deep(.v-btn) {
+  color: var(--tg-theme-text-color) !important;
+}
+
+:deep(.v-btn--active) {
+  color: var(--tg-theme-button-color) !important;
+}
+
+:deep(.v-badge .v-badge__badge) {
+  background-color: var(--tg-theme-button-color) !important;
+  color: var(--tg-theme-button-text-color) !important;
+}
