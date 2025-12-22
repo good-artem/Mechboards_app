@@ -302,10 +302,10 @@ export default {
             caseMaterials: ['Пластик', 'Алюминий', 'Дерево', 'Сталь'],
             layouts: ['60%', '75%', 'TKL', 'Полная'],
             priceRanges: [
-                'До 2000 ₽',
-                '2000-5000 ₽', 
-                '5000-10000 ₽',
-                'Выше 10000 ₽'
+                'До 200 p.',
+                '200-500 p.', 
+                '500-1000 p.',
+                'Выше 1000 p.'
             ],
             productDialog: false,
             selectedProduct: null,
@@ -615,14 +615,14 @@ export default {
         
         parsePriceRange(priceRange) {
             switch (priceRange) {
-                case 'До 2000 ₽':
-                    return [0, 2000];
-                case '2000-5000 ₽':
-                    return [2000, 5000];
-                case '5000-10000 ₽':
-                    return [5000, 10000];
-                case 'Выше 10000 ₽':
-                    return [10000, null];
+                case 'До 200 p.':
+                    return [0, 200];
+                case '200-500 p.':
+                    return [200, 500];
+                case '500-1000 p.':
+                    return [500, 100];
+                case 'Выше 1000 p.':
+                    return [100, null];
                 default:
                     return [null, null];
             }

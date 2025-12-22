@@ -2,13 +2,16 @@ import asyncio
 import sys
 import os
 from datetime import datetime, timedelta
-import json  # Добавьте в начало, если нет
+import json
 
 # Добавляем путь к текущей директории для импортов
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from models import async_session, init_db, Category, Product, Service, News, User # Импортируем User и init_db
-from sqlalchemy import select, text # Импортируем text для PRAGMA
+from models import (
+    async_session, init_db, Category, Product, Service, News, User, 
+    OrderStatus, ServiceStatus, PaymentStatus  # Импортируем Enum'ы
+)
+from sqlalchemy import select, text
 
 async def seed_database():
     # Обязательно инициализируем базу данных перед началом работы
@@ -19,29 +22,6 @@ async def seed_database():
     async with async_session() as session:
         try:
             print("Начинаем заполнение/обновление базы тестовыми данными...")
-
-            # Проверяем и добавляем колонку image_url в таблицу services
-            result = await session.execute(text("PRAGMA table_info(services)"))
-            columns = [row[1] for row in result.fetchall()]
-            if 'image_url' not in columns:
-                print("Добавляем колонку image_url в таблицу services...")
-                await session.execute(text("ALTER TABLE services ADD COLUMN image_url VARCHAR(500)")) # Используем VARCHAR(500) как в модели
-                await session.commit() # Коммитим сразу после ALTER TABLE
-                print("✅ Колонка image_url добавлена")
-            else:
-                print("✅ Колонка image_url уже существует.")
-
-            # Проверяем и добавляем колонку is_admin в таблицу users
-            result_users = await session.execute(text("PRAGMA table_info(users)"))
-            user_columns = [row[1] for row in result_users.fetchall()]
-            if 'is_admin' not in user_columns:
-                print("Добавляем колонку is_admin в таблицу users...")
-                await session.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0")) # 0 = False
-                await session.commit() # Коммитим сразу после ALTER TABLE
-                print("✅ Колонка is_admin добавлена")
-            else:
-                print("✅ Колонка is_admin уже существует.")
-
 
             # 1. КАТЕГОРИИ - upsert (обновляем если есть, создаем если нет)
             categories_data = [
@@ -80,7 +60,7 @@ async def seed_database():
                     print(f"✅ Создана категория: {cat_data['name']}")
                 
                 # Добавляем в словарь для быстрого поиска по имени
-                await session.flush() # Убеждаемся, что category_id доступен
+                await session.flush()
                 created_categories[category.name] = category
             
             print("✅ Категории обновлены/созданы")
@@ -92,7 +72,7 @@ async def seed_database():
                     "description": "Компактная 75% механическая клавиатура с Bluetooth",
                     "price": 4500.00,
                     "stock_quantity": 15,
-                    "category_name": "Весь каталог", # Используем имя категории
+                    "category_name": "Весь каталог",
                     "images": [
                         "assets/images/products/Keychron_k2/Keychron_k2_1.png",
                         "assets/images/products/Keychron_k2/Keychron_k2_2.png",
@@ -105,7 +85,7 @@ async def seed_database():
                     "description": "Линейные свитчи Gateron Yellow (35 шт)",
                     "price": 800.00,
                     "stock_quantity": 50,
-                    "category_name": "Свитчи", # Используем имя категории
+                    "category_name": "Свитчи",
                     "images": [
                         "assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_1.png",
                         "assets/images/products/Gateron_yellow_switches/Gateron_yellow_switches_2.png",
@@ -118,7 +98,7 @@ async def seed_database():
                     "description": "Набор кейкапов из PBT пластика",
                     "price": 1200.00,
                     "stock_quantity": 25,
-                    "category_name": "Кейкапы", # Используем имя категории
+                    "category_name": "Кейкапы",
                     "images": [
                         "assets/images/products/PBT_keycaps_set/PBT_keycaps_set_1.png",
                         "assets/images/products/PBT_keycaps_set/PBT_keycaps_set_2.png",
@@ -131,7 +111,7 @@ async def seed_database():
                     "description": "Набор стабилизаторов для клавиатуры",
                     "price": 400.00,
                     "stock_quantity": 30,
-                    "category_name": "Стабилизаторы", # Используем имя категории
+                    "category_name": "Стабилизаторы",
                     "images": [
                         "assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_1.png",
                         "assets/images/products/Стабилизаторы_Cherry/Стабилизаторы_Cherry_2.png",
@@ -143,10 +123,67 @@ async def seed_database():
                     "description": "Смазка для свитчей и стабилизаторов",
                     "price": 600.00,
                     "stock_quantity": 20,
-                    "category_name": "Смазка и моддинг", # Используем имя категории
+                    "category_name": "Смазка и моддинг",
                     "images": [
                         "assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_1.png",
                         "assets/images/products/Смазка_krytox_205g0/Смазка_krytox_205g0_2.png",
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "Ducky One 3",
+                    "description": "Full-size механическая клавиатура с RGB подсветкой",
+                    "price": 6500.00,
+                    "stock_quantity": 10,
+                    "category_name": "Механические клавиатуры",
+                    "images": [
+                        "assets/images/products/Ducky_One_3/Ducky_One_3_1.png",
+                        "assets/images/products/Ducky_One_3/Ducky_One_3_2.png",
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "Coiled USB-C Cable",
+                    "description": "Витой кабель для клавиатуры с разъемом USB-C",
+                    "price": 1200.00,
+                    "stock_quantity": 40,
+                    "category_name": "Аксессуары",
+                    "images": [
+                        "assets/images/products/Coiled_USB_C_Cable/Coiled_USB_C_Cable_1.png",
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "Varmilo VA87M (БУ)",
+                    "description": "Бывшая в употреблении клавиатура Varmilo в отличном состоянии",
+                    "price": 3500.00,
+                    "stock_quantity": 3,
+                    "category_name": "БУ клавиатуры",
+                    "images": [
+                        "assets/images/products/Varmilo_VA87M_BU/Varmilo_VA87M_BU_1.png",
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "GMK Red Samurai",
+                    "description": "Премиальные кейкапы GMK Red Samurai (базовый набор)",
+                    "price": 8500.00,
+                    "stock_quantity": 5,
+                    "category_name": "Кейкапы",
+                    "images": [
+                        "assets/images/products/GMK_Red_Samurai/GMK_Red_Samurai_1.png",
+                        "assets/images/products/GMK_Red_Samurai/GMK_Red_Samurai_2.png",
+                    ],
+                    "is_available": True
+                },
+                {
+                    "name": "Holy Panda Switches",
+                    "description": "Тактильные свитчи Holy Panda (70 шт)",
+                    "price": 4200.00,
+                    "stock_quantity": 15,
+                    "category_name": "Свитчи",
+                    "images": [
+                        "assets/images/products/Holy_Panda_Switches/Holy_Panda_Switches_1.png",
                     ],
                     "is_available": True
                 },
@@ -168,11 +205,9 @@ async def seed_database():
                     # Обновляем существующий товар
                     product.description = prod_data["description"]
                     product.price = prod_data["price"]
-                    product.category_id = category.category_id # Присваиваем ID найденной категории
+                    product.category_id = category.category_id
                     product.images = json.dumps(prod_data["images"])
                     product.is_available = prod_data["is_available"]
-                    # Не обновляем stock_quantity чтобы не сбрасывать остатки
-                    # product.stock_quantity = prod_data["stock_quantity"]
                     print(f"📝 Обновлен товар: {prod_data['name']}")
                 else:
                     # Создаем новый товар
@@ -181,7 +216,7 @@ async def seed_database():
                         description=prod_data["description"],
                         price=prod_data["price"],
                         stock_quantity=prod_data["stock_quantity"],
-                        category_id=category.category_id, # Присваиваем ID найденной категории
+                        category_id=category.category_id,
                         images=json.dumps(prod_data["images"]),
                         is_available=prod_data["is_available"]
                     )
@@ -199,7 +234,7 @@ async def seed_database():
                     "duration": "2-3 дня",
                     "category": "Сборка",
                     "is_active": True,
-                    "image_url": "https://via.placeholder.com/100x100/667eea/ffffff?text=Assembly" # Добавляем image_url
+                    "image_url": "https://via.placeholder.com/100x100/667eea/ffffff?text=Assembly"
                 },
                 {
                     "name": "Лубрикация свитчей",
@@ -208,7 +243,7 @@ async def seed_database():
                     "duration": "1-2 дня",
                     "category": "Моддинг",
                     "is_active": True,
-                    "image_url": "https://via.placeholder.com/100x100/764ba2/ffffff?text=Lubrication" # Добавляем image_url
+                    "image_url": "https://via.placeholder.com/100x100/764ba2/ffffff?text=Lubrication"
                 },
                 {
                     "name": "Замена стабилизаторов",
@@ -217,7 +252,25 @@ async def seed_database():
                     "duration": "1 день",
                     "category": "Ремонт",
                     "is_active": True,
-                    "image_url": "https://via.placeholder.com/100x100/43e97b/ffffff?text=Stabs" # Добавляем image_url
+                    "image_url": "https://via.placeholder.com/100x100/43e97b/ffffff?text=Stabs"
+                },
+                {
+                    "name": "Программирование клавиатуры",
+                    "description": "Настройка раскладки и макросов через QMK/VIA",
+                    "price": 700.00,
+                    "duration": "1 день",
+                    "category": "Настройка",
+                    "is_active": True,
+                    "image_url": "https://via.placeholder.com/100x100/4facfe/ffffff?text=Programming"
+                },
+                {
+                    "name": "Чистка клавиатуры",
+                    "description": "Глубокая чистка клавиатуры от пыли и загрязнений",
+                    "price": 400.00,
+                    "duration": "1 день",
+                    "category": "Обслуживание",
+                    "is_active": True,
+                    "image_url": "https://via.placeholder.com/100x100/f093fb/ffffff?text=Cleaning"
                 },
             ]
 
@@ -234,7 +287,7 @@ async def seed_database():
                     service.duration = serv_data["duration"]
                     service.category = serv_data["category"]
                     service.is_active = serv_data["is_active"]
-                    service.image_url = serv_data.get("image_url") # Обновляем image_url, если есть
+                    service.image_url = serv_data.get("image_url")
                     print(f"📝 Обновлена услуга: {serv_data['name']}")
                 else:
                     # Создаем новую услугу
@@ -245,7 +298,7 @@ async def seed_database():
                         duration=serv_data["duration"],
                         category=serv_data["category"],
                         is_active=serv_data["is_active"],
-                        image_url=serv_data.get("image_url") # Присваиваем image_url, если есть
+                        image_url=serv_data.get("image_url")
                     )
                     session.add(service)
                     print(f"✅ Создана услуга: {serv_data['name']}")
@@ -258,8 +311,8 @@ async def seed_database():
                     "title": "Новые клавиатуры",
                     "description": "Поступление новых механических клавиатур",
                     "icon": "mdi-keyboard",
-                    "image_url": "https://via.placeholder.com/300x150/667eea/ffffff?text=New+Keyboards  ",
-                    "news_type": "promo", # Исправлено: 'new_products' -> 'promo' или другое допустимое значение
+                    "image_url": "https://via.placeholder.com/300x150/667eea/ffffff?text=New+Keyboards",
+                    "news_type": "promo",
                     "action_url": "/catalog?filter=new",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=30)
@@ -268,8 +321,8 @@ async def seed_database():
                     "title": "Скидки 20%",
                     "description": "Специальные предложения на selected товары",
                     "icon": "mdi-sale",
-                    "image_url": "https://via.placeholder.com/300x150/764ba2/ffffff?text=Discount+20%  ",
-                    "news_type": "discount", # Исправлено: 'promo' -> 'discount'
+                    "image_url": "https://via.placeholder.com/300x150/764ba2/ffffff?text=Discount+20%",
+                    "news_type": "discount",
                     "action_url": "/catalog?filter=discount",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=15)
@@ -278,8 +331,8 @@ async def seed_database():
                     "title": "Доставка за 24ч",
                     "description": "Экспресс-доставка по Москве и области",
                     "icon": "mdi-truck-fast",
-                    "image_url": "https://via.placeholder.com/300x150/f093fb/ffffff?text=Fast+Delivery  ",
-                    "news_type": "delivery", # Исправлено: 'promo' -> 'delivery'
+                    "image_url": "https://via.placeholder.com/300x150/f093fb/ffffff?text=Fast+Delivery",
+                    "news_type": "delivery",
                     "action_url": "/support",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=60)
@@ -288,8 +341,8 @@ async def seed_database():
                     "title": "Кейкапы",
                     "description": "Новая коллекция кейкапов",
                     "icon": "mdi-circle-multiple",
-                    "image_url": "https://via.placeholder.com/300x150/4facfe/ffffff?text=Keycaps  ",
-                    "news_type": "category", # Исправлено: 'promo' -> 'category'
+                    "image_url": "https://via.placeholder.com/300x150/4facfe/ffffff?text=Keycaps",
+                    "news_type": "category",
                     "action_url": "/catalog?category=keycaps",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=45)
@@ -298,12 +351,32 @@ async def seed_database():
                     "title": "Аксессуары",
                     "description": "Кабели, коврики и другие аксессуары",
                     "icon": "mdi-cable-data",
-                    "image_url": "https://via.placeholder.com/300x150/43e97b/ffffff?text=Accessories  ",
-                    "news_type": "category", # Исправлено: 'promo' -> 'category'
+                    "image_url": "https://via.placeholder.com/300x150/43e97b/ffffff?text=Accessories",
+                    "news_type": "category",
                     "action_url": "/catalog?category=accessories",
                     "is_active": True,
                     "expires_at": datetime.now() + timedelta(days=30)
-                }
+                },
+                {
+                    "title": "Свитчи в наличии",
+                    "description": "Новая партия механических свитчей",
+                    "icon": "mdi-circle-multiple",
+                    "image_url": "https://via.placeholder.com/300x150/ff9a9e/ffffff?text=Switches",
+                    "news_type": "promo",
+                    "action_url": "/catalog?category=switches",
+                    "is_active": True,
+                    "expires_at": datetime.now() + timedelta(days=25)
+                },
+                {
+                    "title": "БУ техника",
+                    "description": "Проверенные клавиатуры бывшие в употреблении",
+                    "icon": "mdi-keyboard-return",
+                    "image_url": "https://via.placeholder.com/300x150/a8edea/ffffff?text=Used",
+                    "news_type": "category",
+                    "action_url": "/catalog?category=used",
+                    "is_active": True,
+                    "expires_at": datetime.now() + timedelta(days=40)
+                },
             ]
 
             for news_item in news_data:
@@ -317,7 +390,7 @@ async def seed_database():
                     news.description = news_item["description"]
                     news.icon = news_item["icon"]
                     news.image_url = news_item["image_url"]
-                    news.news_type = news_item["news_type"] # Используем исправленный тип
+                    news.news_type = news_item["news_type"]
                     news.action_url = news_item["action_url"]
                     news.is_active = news_item["is_active"]
                     news.expires_at = news_item["expires_at"]
@@ -329,7 +402,7 @@ async def seed_database():
                         description=news_item["description"],
                         icon=news_item["icon"],
                         image_url=news_item["image_url"],
-                        news_type=news_item["news_type"], # Используем исправленный тип
+                        news_type=news_item["news_type"],
                         action_url=news_item["action_url"],
                         is_active=news_item["is_active"],
                         expires_at=news_item["expires_at"]
@@ -339,7 +412,7 @@ async def seed_database():
             
             print("✅ Новости обновлены/созданы")
 
-            # Создаем администратора по умолчанию
+            # 5. Создаем администратора по умолчанию
             admin_telegram_id = 391622124
             result = await session.execute(
                 select(User).where(User.telegram_id == admin_telegram_id)
@@ -349,29 +422,52 @@ async def seed_database():
             if admin_user:
                 # Обновляем существующего пользователя
                 admin_user.is_admin = True
+                admin_user.is_active = True
                 print(f"✅ Пользователь {admin_telegram_id} назначен администратором")
             else:
                 # Создаем нового администратора
                 admin_user = User(
                     telegram_id=admin_telegram_id,
-                    username="admin_user",
+                    username="good_artem",
                     name="Администратор",
+                    phone="+375297627173",
+                    email="admin@keyboardstore.com",
                     is_active=True,
                     is_admin=True
                 )
                 session.add(admin_user)
                 print(f"✅ Создан администратор с ID {admin_telegram_id}")
+
+            # 6. Создаем тестового пользователя
+            test_user_telegram_id = 123456789
+            result = await session.execute(
+                select(User).where(User.telegram_id == test_user_telegram_id)
+            )
+            test_user = result.scalar_one_or_none()
             
+            if not test_user:
+                test_user = User(
+                    telegram_id=test_user_telegram_id,
+                    username="test_user",
+                    name="Тестовый Пользователь",
+                    phone="+375291231212",
+                    email="test@example.com",
+                    address="ул. Тестовая, д. 1, кв. 1",
+                    is_active=True,
+                    is_admin=False
+                )
+                session.add(test_user)
+                print(f"✅ Создан тестовый пользователь с ID {test_user_telegram_id}")
+
             await session.commit()
             print("✅ База данных успешно обновлена!")
+            
         except Exception as e:
             await session.rollback()
             print(f"❌ Ошибка при обновлении базы: {e}")
-            import traceback # Добавляем вывод полного стека ошибок
+            import traceback
             traceback.print_exc()
             raise
-    
-    await session.commit()
-# ИЗМЕНИТЕ вызов в конце файла:
+
 if __name__ == "__main__":
     asyncio.run(seed_database())

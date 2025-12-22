@@ -18,9 +18,14 @@ const routes = [
     })
   },
   {
+    path: '/services',
+    name: 'services',
+    component: () => import('@/views/ServicesView.vue')
+  },
+  {
     path: '/support',
     name: 'support',
-    component: () => import('@/views/SupportView.vue')
+    redirect: '/services?tab=support'
   },
   {
     path: '/cart',
@@ -31,11 +36,6 @@ const routes = [
     path: '/profile',
     name: 'profile',
     component: () => import('@/views/ProfileView.vue')
-  },
-  {
-    path: '/services',
-    name: 'services',
-    component: () => import('@/views/ServicesView.vue')
   },
   {
     path: '/admin',

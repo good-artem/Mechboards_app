@@ -187,6 +187,30 @@ class News(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
+class SupportTicket(Base):
+    __tablename__ = 'support_tickets'
+    ticket_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default='open')  # open, closed, pending
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    messages: Mapped[List["SupportMessage"]] = relationship("SupportMessage", back_populates="ticket", cascade="all, delete-orphan")
+
+class SupportMessage(Base):
+    __tablename__ = 'support_messages'
+    message_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey('support_tickets.ticket_id', ondelete='CASCADE'), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    is_from_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    # Relationships
+    ticket: Mapped["SupportTicket"] = relationship("SupportTicket", back_populates="messages")
+    user: Mapped["User"] = relationship("User")
+    
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

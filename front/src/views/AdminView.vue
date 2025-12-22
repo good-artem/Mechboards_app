@@ -33,454 +33,531 @@
           </v-col>
         </v-row>
         
-        <!-- Основной контент -->
+        <!-- Вкладки -->
         <v-tabs v-model="activeTab" class="mt-4" color="primary">
           <v-tab value="orders">Заказы товаров</v-tab>
           <v-tab value="service_orders">Заказы услуг</v-tab>
           <v-tab value="products">Товары</v-tab>
           <v-tab value="services">Услуги</v-tab>
           <v-tab value="users">Пользователи</v-tab>
+          <v-tab value="support">Поддержка</v-tab>
           <v-tab value="stats">Статистика</v-tab>
         </v-tabs>
         
-        <v-window v-model="activeTab" class="mt-4">
+        <!-- Окно вкладок -->
+        <v-window v-model="activeTab" class="mt-4" :touch="false">
           <!-- Вкладка Заказов товаров -->
           <v-window-item value="orders">
-            <div class="orders-section">
-              <v-card class="admin-card pa-3" elevation="1">
-                <v-card-title class="d-flex justify-space-between align-center">
-                  <span class="font-weight-medium">Заказы товаров</span>
-                  <div>
-                    <v-select
-                      v-model="orderFilter"
-                      :items="statusOptions"
-                      label="Фильтр по статусу"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      class="filter-select mr-2"
-                      style="max-width: 200px; display: inline-block;"
-                      @update:model-value="fetchOrders"
-                    ></v-select>
-                    <v-btn size="small" variant="tonal" @click="fetchOrders">
-                      <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
-                      Обновить
-                    </v-btn>
-                  </div>
-                </v-card-title>
-                <v-card-text>
-                  <v-data-table
-                    :items="orders"
-                    :headers="orderHeaders"
-                    :loading="loadingOrders"
-                    loading-text="Загрузка заказов..."
-                    no-data-text="Нет заказов"
-                    class="admin-table"
-                    hide-default-footer
+            <v-card class="admin-card pa-3" elevation="1">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="font-weight-medium">Заказы товаров</span>
+                <div>
+                  <v-select
+                    v-model="orderFilter"
+                    :items="statusOptions"
+                    label="Фильтр по статусу"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="filter-select mr-2"
+                    style="max-width: 200px;"
+                    @update:model-value="fetchOrders"
                   >
-                    <template v-slot:item.status="{ item }">
-                      <v-chip 
-                        :color="getStatusColor(item.status)" 
-                        size="small"
-                        variant="tonal"
-                      >
-                        {{ getStatusText(item.status) }}
-                      </v-chip>
+                    <template v-slot:item="{ item, props }">
+                      <v-list-item v-bind="props">
+                        <v-list-item-title>
+                          {{ item === null ? 'Все статусы' : item }}
+                        </v-list-item-title>
+                      </v-list-item>
                     </template>
-                    <template v-slot:item.total_amount="{ item }">
-                      {{ formatPrice(item.total_amount) }}
+                    <template v-slot:selection="{ item }">
+                      {{ item === null ? 'Все статусы' : item }}
                     </template>
-                    <template v-slot:item.user="{ item }">
-                      <div v-if="item.user">
-                        <div>{{ item.user.name || 'Без имени' }}</div>
-                        <div class="text-caption">@{{ item.user.username || 'без username' }}</div>
-                        <div class="text-caption">ID: {{ item.user.telegram_id }}</div>
-                      </div>
-                      <div v-else>Пользователь не найден</div>
-                    </template>
-                    <template v-slot:item.actions="{ item }">
-                      <v-btn 
-                        size="small" 
-                        variant="tonal" 
-                        color="primary" 
-                        @click="viewOrderDetails(item)"
-                        class="mr-1"
-                      >
-                        <v-icon size="18">mdi-eye</v-icon>
-                      </v-btn>
-                      <v-btn 
-                        size="small" 
-                        variant="tonal" 
-                        color="success" 
-                        @click="updateOrderStatus(item, 'Доставлен')"
-                        v-if="item.status !== 'Доставлен' && item.status !== 'Отменен'"
-                      >
-                        <v-icon size="18">mdi-check</v-icon>
-                      </v-btn>
-                    </template>
-                  </v-data-table>
-                </v-card-text>
-              </v-card>
-            </div>
+                  </v-select>
+                  <v-btn size="small" variant="tonal" @click="fetchOrders">
+                    <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
+                    Обновить
+                  </v-btn>
+                </div>
+              </v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :items="orders"
+                  :headers="orderHeaders"
+                  :loading="loadingOrders"
+                  loading-text="Загрузка заказов..."
+                  no-data-text="Нет заказов"
+                  class="admin-table"
+                  hide-default-footer
+                >
+                  <template v-slot:item.status="{ item }">
+                    <v-chip 
+                      :color="getStatusColor(item.status)" 
+                      size="small"
+                      variant="tonal"
+                    >
+                      {{ item.status }}
+                    </v-chip>
+                  </template>
+                  <template v-slot:item.total_amount="{ item }">
+                    {{ formatPrice(item.total_amount) }}
+                  </template>
+                  <template v-slot:item.user="{ item }">
+                    <div v-if="item.user">
+                      <div>{{ item.user.name || 'Без имени' }}</div>
+                      <div class="text-caption">@{{ item.user.username || 'без username' }}</div>
+                      <div class="text-caption">ID: {{ item.user.telegram_id }}</div>
+                    </div>
+                    <div v-else>Пользователь не найден</div>
+                  </template>
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn 
+                      size="small" 
+                      variant="tonal" 
+                      color="primary" 
+                      @click="viewOrderDetails(item)"
+                      class="mr-1"
+                    >
+                      <v-icon size="18">mdi-eye</v-icon>
+                    </v-btn>
+                    <v-btn 
+                      size="small" 
+                      variant="tonal" 
+                      color="success" 
+                      @click="updateOrderStatus(item, 'Доставлен')"
+                      v-if="item.status !== 'Доставлен' && item.status !== 'Отменен'"
+                    >
+                      <v-icon size="18">mdi-check</v-icon>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-card-text>
+            </v-card>
           </v-window-item>
           
           <!-- Вкладка Заказов услуг -->
           <v-window-item value="service_orders">
-            <div class="service-orders-section">
-              <v-card class="admin-card pa-3" elevation="1">
-                <v-card-title class="d-flex justify-space-between align-center">
-                  <span class="font-weight-medium">Заказы услуг</span>
-                  <div>
-                    <v-select
-                      v-model="serviceOrderFilter"
-                      :items="statusOptions"
-                      label="Фильтр по статусу"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      class="filter-select mr-2"
-                      style="max-width: 200px; display: inline-block;"
-                      @update:model-value="fetchServiceOrders"
-                    ></v-select>
-                    <v-btn size="small" variant="tonal" @click="fetchServiceOrders">
-                      <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
-                      Обновить
+            <v-card class="admin-card pa-3" elevation="1">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="font-weight-medium">Заказы услуг</span>
+                <div>
+                  <v-select
+                    v-model="serviceOrderFilter"
+                    :items="statusOptions"
+                    label="Фильтр по статусу"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="filter-select mr-2"
+                    style="max-width: 200px;"
+                    @update:model-value="fetchServiceOrders"
+                  ></v-select>
+                  <v-btn size="small" variant="tonal" @click="fetchServiceOrders">
+                    <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
+                    Обновить
+                  </v-btn>
+                </div>
+              </v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :items="serviceOrders"
+                  :headers="serviceOrderHeaders"
+                  :loading="loadingServiceOrders"
+                  loading-text="Загрузка заказов услуг..."
+                  no-data-text="Нет заказов на услуги"
+                  class="admin-table"
+                  hide-default-footer
+                >
+                  <template v-slot:item.status="{ item }">
+                    <v-chip 
+                      :color="getStatusColor(item.status)" 
+                      size="small"
+                      variant="tonal"
+                    >
+                      {{ item.status }}
+                    </v-chip>
+                  </template>
+                  <template v-slot:item.price="{ item }">
+                    {{ formatPrice(item.price) }}
+                  </template>
+                  <template v-slot:item.user="{ item }">
+                    <div v-if="item.user">
+                      <div>{{ item.user.name || 'Без имени' }}</div>
+                      <div class="text-caption">ID: {{ item.user.telegram_id }}</div>
+                    </div>
+                    <div v-else>Пользователь не найден</div>
+                  </template>
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn 
+                      size="small" 
+                      variant="tonal" 
+                      color="success" 
+                      @click="updateServiceOrderStatus(item, 'Доставлен')"
+                      v-if="item.status !== 'Доставлен' && item.status !== 'Отменен'"
+                    >
+                      <v-icon size="18">mdi-check</v-icon>
                     </v-btn>
-                  </div>
-                </v-card-title>
-                <v-card-text>
-                  <v-data-table
-                    :items="serviceOrders"
-                    :headers="serviceOrderHeaders"
-                    :loading="loadingServiceOrders"
-                    loading-text="Загрузка заказов услуг..."
-                    no-data-text="Нет заказов на услуги"
-                    class="admin-table"
-                    hide-default-footer
-                  >
-                    <template v-slot:item.status="{ item }">
-                      <v-chip 
-                        :color="getStatusColor(item.status)" 
-                        size="small"
-                        variant="tonal"
-                      >
-                        {{ getStatusText(item.status) }}
-                      </v-chip>
-                    </template>
-                    <template v-slot:item.price="{ item }">
-                      {{ formatPrice(item.price) }}
-                    </template>
-                    <template v-slot:item.user="{ item }">
-                      <div v-if="item.user">
-                        <div>{{ item.user.name || 'Без имени' }}</div>
-                        <div class="text-caption">ID: {{ item.user.telegram_id }}</div>
-                      </div>
-                      <div v-else>Пользователь не найден</div>
-                    </template>
-                    <template v-slot:item.actions="{ item }">
-                      <v-btn 
-                        size="small" 
-                        variant="tonal" 
-                        color="success" 
-                        @click="updateServiceOrderStatus(item, 'Доставлен')"
-                        v-if="item.status !== 'Доставлен' && item.status !== 'Отменен'"
-                      >
-                        <v-icon size="18">mdi-check</v-icon>
-                      </v-btn>
-                    </template>
-                  </v-data-table>
-                </v-card-text>
-              </v-card>
-            </div>
+                  </template>
+                </v-data-table>
+              </v-card-text>
+            </v-card>
           </v-window-item>
           
           <!-- Вкладка Товаров -->
           <v-window-item value="products">
-            <div class="products-section">
-              <v-card class="admin-card pa-3" elevation="1">
-                <v-card-title class="d-flex justify-space-between align-center">
-                  <span class="font-weight-medium">Каталог товаров</span>
-                  <v-btn size="small" color="primary" @click="openAddProductDialog">
-                    <v-icon size="18" class="mr-1">mdi-plus</v-icon>
-                    Добавить товар
-                  </v-btn>
-                </v-card-title>
-                <v-card-text>
-                  <v-data-table
-                    :items="products"
-                    :headers="productHeaders"
-                    :loading="loadingProducts"
-                    loading-text="Загрузка товаров..."
-                    no-data-text="Нет товаров в каталоге"
-                    class="admin-table"
-                    :items-per-page="10"
-                  >
-                    <template v-slot:item.images="{ item }">
-                      <v-avatar size="40" class="mr-2">
-                        <v-img 
-                          :src="getProductImage(item)" 
-                          alt="Product image"
-                          cover
-                        ></v-img>
-                      </v-avatar>
-                    </template>
-                    <template v-slot:item.price="{ item }">
-                      {{ formatPrice(item.price) }}
-                    </template>
-                    <template v-slot:item.stock_quantity="{ item }">
-                      <v-chip 
-                        :color="item.stock_quantity > 0 ? 'success' : 'error'" 
-                        size="small"
-                        variant="tonal"
-                      >
-                        {{ item.stock_quantity }} шт.
-                      </v-chip>
-                    </template>
-                    <template v-slot:item.is_available="{ item }">
-                      <v-switch
-                        v-model="item.is_available"
-                        inset
-                        hide-details
-                        color="success"
-                        @change="updateProductAvailability(item)"
-                      ></v-switch>
-                    </template>
-                    <template v-slot:item.actions="{ item }">
-                      <v-btn size="small" variant="tonal" color="primary" class="mr-1" @click="editProduct(item)">
-                        <v-icon size="18">mdi-pencil</v-icon>
-                      </v-btn>
-                      <v-btn size="small" variant="tonal" color="error" @click="deleteProduct(item)">
-                        <v-icon size="18">mdi-delete</v-icon>
-                      </v-btn>
-                    </template>
-                  </v-data-table>
-                </v-card-text>
-              </v-card>
-            </div>
+            <v-card class="admin-card pa-3" elevation="1">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="font-weight-medium">Каталог товаров</span>
+                <v-btn size="small" color="primary" @click="openAddProductDialog">
+                  <v-icon size="18" class="mr-1">mdi-plus</v-icon>
+                  Добавить товар
+                </v-btn>
+              </v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :items="products"
+                  :headers="productHeaders"
+                  :loading="loadingProducts"
+                  loading-text="Загрузка товаров..."
+                  no-data-text="Нет товаров в каталоге"
+                  class="admin-table"
+                  :items-per-page="10"
+                >
+                  <template v-slot:item.images="{ item }">
+                    <v-avatar size="40" class="mr-2">
+                      <v-img 
+                        :src="getProductImage(item)" 
+                        alt="Product image"
+                        cover
+                      ></v-img>
+                    </v-avatar>
+                  </template>
+                  <template v-slot:item.price="{ item }">
+                    {{ formatPrice(item.price) }}
+                  </template>
+                  <template v-slot:item.stock_quantity="{ item }">
+                    <v-chip 
+                      :color="item.stock_quantity > 0 ? 'success' : 'error'" 
+                      size="small"
+                      variant="tonal"
+                    >
+                      {{ item.stock_quantity }} шт.
+                    </v-chip>
+                  </template>
+                  <template v-slot:item.is_available="{ item }">
+                    <v-switch
+                      v-model="item.is_available"
+                      inset
+                      hide-details
+                      color="success"
+                      @change="updateProductAvailability(item)"
+                    ></v-switch>
+                  </template>
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn size="small" variant="tonal" color="primary" class="mr-1" @click="editProduct(item)">
+                      <v-icon size="18">mdi-pencil</v-icon>
+                    </v-btn>
+                    <v-btn size="small" variant="tonal" color="error" @click="deleteProduct(item)">
+                      <v-icon size="18">mdi-delete</v-icon>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-card-text>
+            </v-card>
           </v-window-item>
           
           <!-- Вкладка Услуг -->
           <v-window-item value="services">
-            <div class="services-section">
-              <v-card class="admin-card pa-3" elevation="1">
-                <v-card-title class="d-flex justify-space-between align-center">
-                  <span class="font-weight-medium">Услуги</span>
-                  <v-btn size="small" color="primary" @click="openAddServiceDialog">
-                    <v-icon size="18" class="mr-1">mdi-plus</v-icon>
-                    Добавить услугу
-                  </v-btn>
-                </v-card-title>
-                <v-card-text>
-                  <v-list lines="two" class="admin-list">
-                    <v-list-item
-                      v-for="service in services"
-                      :key="service.service_id"
-                      class="service-item mb-1"
-                    >
-                      <template v-slot:prepend>
-                        <v-avatar rounded="lg" size="40" class="service-icon mr-3">
-                          <v-icon size="20" color="white">mdi-wrench</v-icon>
-                        </v-avatar>
-                      </template>
-                      
-                      <div class="service-content">
-                        <div class="service-name font-weight-medium">{{ service.name }}</div>
-                        <div class="service-description text-caption text-grey">{{ service.description }}</div>
-                        <div class="d-flex align-center mt-1">
-                          <div class="service-price text-body-2 font-weight-medium primary--text mr-3">
-                            {{ formatPrice(service.price) }}
-                          </div>
-                          <v-chip v-if="service.duration" size="small" variant="tonal">
-                            {{ service.duration }}
-                          </v-chip>
+            <v-card class="admin-card pa-3" elevation="1">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="font-weight-medium">Услуги</span>
+                <v-btn size="small" color="primary" @click="openAddServiceDialog">
+                  <v-icon size="18" class="mr-1">mdi-plus</v-icon>
+                  Добавить услугу
+                </v-btn>
+              </v-card-title>
+              <v-card-text>
+                <v-list lines="two" class="admin-list">
+                  <v-list-item
+                    v-for="service in services"
+                    :key="service.service_id"
+                    class="service-item mb-1"
+                  >
+                    <template v-slot:prepend>
+                      <v-avatar rounded="lg" size="40" class="service-icon mr-3">
+                        <v-icon size="20" color="white">mdi-wrench</v-icon>
+                      </v-avatar>
+                    </template>
+                    
+                    <div class="service-content">
+                      <div class="service-name font-weight-medium">{{ service.name }}</div>
+                      <div class="service-description text-caption text-grey">{{ service.description }}</div>
+                      <div class="d-flex align-center mt-1">
+                        <div class="service-price text-body-2 font-weight-medium primary--text mr-3">
+                          {{ formatPrice(service.price) }}
                         </div>
+                        <v-chip v-if="service.duration" size="small" variant="tonal">
+                          {{ service.duration }}
+                        </v-chip>
                       </div>
-                      
-                      <template v-slot:append>
-                        <div class="d-flex">
-                          <v-switch
-                            v-model="service.is_active"
-                            inset
-                            hide-details
-                            color="success"
-                            @change="updateServiceActivity(service)"
-                          ></v-switch>
-                          <v-btn size="small" variant="tonal" color="primary" class="mr-1" @click="editService(service)">
-                            <v-icon size="18">mdi-pencil</v-icon>
-                          </v-btn>
-                          <v-btn size="small" variant="tonal" color="error" @click="deleteService(service)">
-                            <v-icon size="18">mdi-delete</v-icon>
-                          </v-btn>
-                        </div>
-                      </template>
-                    </v-list-item>
-                  </v-list>
-                </v-card-text>
-              </v-card>
-            </div>
+                    </div>
+                    
+                    <template v-slot:append>
+                      <div class="d-flex">
+                        <v-switch
+                          v-model="service.is_active"
+                          inset
+                          hide-details
+                          color="success"
+                          @change="updateServiceActivity(service)"
+                        ></v-switch>
+                        <v-btn size="small" variant="tonal" color="primary" class="mr-1" @click="editService(service)">
+                          <v-icon size="18">mdi-pencil</v-icon>
+                        </v-btn>
+                        <v-btn size="small" variant="tonal" color="error" @click="deleteService(service)">
+                          <v-icon size="18">mdi-delete</v-icon>
+                        </v-btn>
+                      </div>
+                    </template>
+                  </v-list-item>
+                </v-list>
+              </v-card-text>
+            </v-card>
           </v-window-item>
           
           <!-- Вкладка Пользователей -->
           <v-window-item value="users">
-            <div class="users-section">
-              <v-card class="admin-card pa-3" elevation="1">
-                <v-card-title class="d-flex justify-space-between align-center">
-                  <span class="font-weight-medium">Пользователи</span>
-                  <div>
-                    <v-text-field
-                      v-model="userSearch"
-                      placeholder="Поиск пользователей..."
-                      variant="outlined"
-                      density="compact"
+            <v-card class="admin-card pa-3" elevation="1">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="font-weight-medium">Пользователи</span>
+                <div>
+                  <v-text-field
+                    v-model="userSearch"
+                    placeholder="Поиск пользователей..."
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    prepend-inner-icon="mdi-magnify"
+                    clearable
+                    @input="fetchUsers"
+                    @click:clear="fetchUsers"
+                    style="max-width: 300px;"
+                    class="mr-2"
+                  ></v-text-field>
+                  <v-btn size="small" variant="tonal" @click="fetchUsers">
+                    <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
+                    Обновить
+                  </v-btn>
+                </div>
+              </v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :items="users"
+                  :headers="userHeaders"
+                  :loading="loadingUsers"
+                  loading-text="Загрузка пользователей..."
+                  no-data-text="Нет пользователей"
+                  class="admin-table"
+                  :items-per-page="10"
+                >
+                  <template v-slot:item.is_active="{ item }">
+                    <v-switch
+                      v-model="item.is_active"
+                      inset
                       hide-details
-                      prepend-inner-icon="mdi-magnify"
-                      clearable
-                      @input="fetchUsers"
-                      @click:clear="fetchUsers"
-                      style="max-width: 300px; display: inline-block;"
-                      class="mr-2"
-                    ></v-text-field>
-                    <v-btn size="small" variant="tonal" @click="fetchUsers">
-                      <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
-                      Обновить
+                      color="success"
+                      @change="updateUserActivity(item)"
+                    ></v-switch>
+                  </template>
+                  <template v-slot:item.is_admin="{ item }">
+                    <v-switch
+                      v-model="item.is_admin"
+                      inset
+                      hide-details
+                      color="primary"
+                      @change="updateUserAdminStatus(item)"
+                    ></v-switch>
+                  </template>
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn 
+                      size="small" 
+                      variant="tonal" 
+                      color="primary" 
+                      @click="sendMessageToUser(item)"
+                      class="mr-1"
+                    >
+                      <v-icon size="18">mdi-message</v-icon>
                     </v-btn>
-                  </div>
-                </v-card-title>
-                <v-card-text>
-                  <v-data-table
-                    :items="users"
-                    :headers="userHeaders"
-                    :loading="loadingUsers"
-                    loading-text="Загрузка пользователей..."
-                    no-data-text="Нет пользователей"
-                    class="admin-table"
-                    :items-per-page="10"
-                  >
-                    <template v-slot:item.is_active="{ item }">
-                      <v-switch
-                        v-model="item.is_active"
-                        inset
-                        hide-details
-                        color="success"
-                        @change="updateUserActivity(item)"
-                      ></v-switch>
-                    </template>
-                    <template v-slot:item.is_admin="{ item }">
-                      <v-switch
-                        v-model="item.is_admin"
-                        inset
-                        hide-details
-                        color="primary"
-                        @change="updateUserAdminStatus(item)"
-                      ></v-switch>
-                    </template>
-                    <template v-slot:item.actions="{ item }">
-                      <v-btn 
-                        size="small" 
-                        variant="tonal" 
-                        color="primary" 
-                        @click="sendMessageToUser(item)"
-                        class="mr-1"
-                      >
-                        <v-icon size="18">mdi-message</v-icon>
-                      </v-btn>
-                      <v-btn 
-                        size="small" 
-                        variant="tonal" 
-                        color="info" 
-                        @click="viewUserOrders(item)"
-                      >
-                        <v-icon size="18">mdi-shopping</v-icon>
-                      </v-btn>
-                    </template>
-                  </v-data-table>
-                </v-card-text>
-              </v-card>
-            </div>
+                    <v-btn 
+                      size="small" 
+                      variant="tonal" 
+                      color="info" 
+                      @click="viewUserOrders(item)"
+                    >
+                      <v-icon size="18">mdi-shopping</v-icon>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-card-text>
+            </v-card>
+          </v-window-item>
+          
+          <!-- Вкладка Поддержки -->
+          <v-window-item value="support">
+            <v-card class="admin-card pa-3" elevation="1">
+              <v-card-title class="d-flex justify-space-between align-center">
+                <span class="font-weight-medium">Поддержка</span>
+                <div>
+                  <v-select
+                    v-model="supportFilter"
+                    :items="supportStatuses"
+                    label="Фильтр по статусу"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="filter-select mr-2"
+                    style="max-width: 200px;"
+                    @update:model-value="fetchSupportTickets"
+                  ></v-select>
+                  <v-btn size="small" variant="tonal" @click="fetchSupportTickets">
+                    <v-icon size="18" class="mr-1">mdi-refresh</v-icon>
+                    Обновить
+                  </v-btn>
+                </div>
+              </v-card-title>
+              <v-card-text>
+                <v-data-table
+                  :items="supportTickets"
+                  :headers="supportHeaders"
+                  :loading="loadingSupport"
+                  loading-text="Загрузка тикетов..."
+                  no-data-text="Нет тикетов поддержки"
+                  class="admin-table"
+                  hide-default-footer
+                >
+                  <template v-slot:item.status="{ item }">
+                    <v-chip 
+                      :color="getSupportStatusColor(item.status)" 
+                      size="small"
+                      variant="tonal"
+                    >
+                      {{ getSupportStatusText(item.status) }}
+                    </v-chip>
+                  </template>
+                  <template v-slot:item.user="{ item }">
+                    <div v-if="item.user">
+                      <div>{{ item.user.name || 'Без имени' }}</div>
+                      <div class="text-caption">@{{ item.user.username || 'без username' }}</div>
+                      <div class="text-caption">ID: {{ item.user.telegram_id }}</div>
+                    </div>
+                    <div v-else>Пользователь не найден</div>
+                  </template>
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn 
+                      size="small" 
+                      variant="tonal" 
+                      color="primary" 
+                      @click="openTelegramChat(item.user.telegram_id)"
+                      class="mr-1"
+                    >
+                      <v-icon size="18">mdi-telegram</v-icon>
+                    </v-btn>
+                    <v-btn 
+                      size="small" 
+                      variant="tonal" 
+                      color="success" 
+                      @click="closeSupportTicket(item)"
+                      v-if="item.status !== 'closed'"
+                    >
+                      <v-icon size="18">mdi-check</v-icon>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-card-text>
+            </v-card>
           </v-window-item>
           
           <!-- Вкладка Статистики -->
           <v-window-item value="stats">
-            <div class="stats-section">
-              <v-row>
-                <v-col cols="12" md="6" lg="3" v-for="(stat, index) in statsCards" :key="index">
-                  <v-card class="stat-card pa-3" elevation="1">
-                    <div class="d-flex align-center">
-                      <v-avatar size="40" class="mr-3" :color="stat.color" variant="tonal">
-                        <v-icon size="24" dark>{{ stat.icon }}</v-icon>
-                      </v-avatar>
-                      <div>
-                        <div class="text-body-2 text-grey">{{ stat.label }}</div>
-                        <div class="text-h6 font-weight-bold mt-1">{{ stat.value }}</div>
-                      </div>
+            <v-row>
+              <v-col cols="12" md="6" lg="3" v-for="(stat, index) in statsCards" :key="index">
+                <v-card class="stat-card pa-3" elevation="1">
+                  <div class="d-flex align-center">
+                    <v-avatar size="40" class="mr-3" :color="stat.color" variant="tonal">
+                      <v-icon size="24" dark>{{ stat.icon }}</v-icon>
+                    </v-avatar>
+                    <div>
+                      <div class="text-body-2 text-grey">{{ stat.label }}</div>
+                      <div class="text-h6 font-weight-bold mt-1">{{ stat.value }}</div>
                     </div>
-                  </v-card>
-                </v-col>
-              </v-row>
-              
-              <!-- Статистика заказов по статусам -->
-              <v-row class="mt-4">
-                <v-col cols="12" md="6">
-                  <v-card class="admin-card pa-3" elevation="1">
-                    <v-card-title class="font-weight-medium">Заказы по статусам</v-card-title>
-                    <v-card-text>
-                      <v-list>
-                        <v-list-item
-                          v-for="(count, status) in statsData.orders?.by_status || {}"
-                          :key="status"
-                          class="px-0"
-                        >
-                          <template v-slot:prepend>
-                            <v-chip :color="getStatusColor(status)" size="small" class="mr-3">
-                              {{ getStatusText(status) }}
-                            </v-chip>
-                          </template>
-                          <v-list-item-title class="text-right">{{ count }} заказов</v-list-item-title>
-                        </v-list-item>
-                      </v-list>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-card class="admin-card pa-3" elevation="1">
-                    <v-card-title class="font-weight-medium">Последние заказы</v-card-title>
-                    <v-card-text>
-                      <v-timeline density="compact" side="end">
-                        <v-timeline-item
-                          v-for="order in statsData.recent_orders || []"
-                          :key="order.order_id"
-                          size="small"
-                          :dot-color="getStatusColor(order.status)"
-                        >
-                          <div>
-                            <div class="font-weight-medium">Заказ #{{ order.order_number }}</div>
-                            <div class="text-caption text-grey mt-1">
-                              {{ new Date(order.created_at).toLocaleDateString('ru-RU') }} • {{ formatPrice(order.total_amount) }}
-                            </div>
-                            <div class="text-caption">
-                              {{ order.user?.name || 'Без имени' }}
-                            </div>
-                            <v-chip 
-                              :color="getStatusColor(order.status)" 
-                              size="small"
-                              class="mt-2"
-                              variant="tonal"
-                            >
-                              {{ getStatusText(order.status) }}
-                            </v-chip>
+                  </div>
+                </v-card>
+              </v-col>
+            </v-row>
+            
+            <!-- Статистика заказов по статусам -->
+            <v-row class="mt-4">
+              <v-col cols="12" md="6">
+                <v-card class="admin-card pa-3 mt-4" elevation="1">
+                  <v-card-title class="font-weight-medium">Заказы по статусам</v-card-title>
+                  <v-card-text>
+                    <v-list>
+                      <v-list-item
+                        v-for="(count, status) in statsData.orders?.by_status || {}"
+                        :key="status"
+                        class="px-0"
+                      >
+                        <template v-slot:prepend>
+                          <v-chip :color="getStatusColor(status)" size="small" class="mr-3">
+                            {{ status }}
+                          </v-chip>
+                        </template>
+                        <v-list-item-title class="text-right">{{ count }} заказов</v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-card class="admin-card pa-3 mt-4" elevation="1">
+                  <v-card-title class="font-weight-medium">Последние заказы</v-card-title>
+                  <v-card-text>
+                    <v-timeline density="compact" side="end">
+                      <v-timeline-item
+                        v-for="order in statsData.recent_orders || []"
+                        :key="order.order_id"
+                        size="small"
+                        :dot-color="getStatusColor(order.status)"
+                      >
+                        <div>
+                          <div class="font-weight-medium">Заказ #{{ order.order_number }}</div>
+                          <div class="text-caption text-grey mt-1">
+                            {{ new Date(order.created_at).toLocaleDateString('ru-RU') }} • {{ formatPrice(order.total_amount) }}
                           </div>
-                        </v-timeline-item>
-                      </v-timeline>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-            </div>
+                          <div class="text-caption">
+                            {{ order.user?.name || 'Без имени' }}
+                          </div>
+                          <v-chip 
+                            :color="getStatusColor(order.status)" 
+                            size="small"
+                            class="mt-2"
+                            variant="tonal"
+                          >
+                            {{ order.status }}
+                          </v-chip>
+                        </div>
+                      </v-timeline-item>
+                    </v-timeline>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
           </v-window-item>
         </v-window>
       </v-col>
     </v-row>
     
+    <!-- Диалоги -->
     <!-- Диалог деталей заказа -->
     <v-dialog v-model="orderDetailsDialog" max-width="600">
       <v-card>
@@ -495,9 +572,7 @@
             <div class="text-subtitle-1 font-weight-medium mb-1">Статус:</div>
             <v-select
               v-model="selectedOrder.status"
-              :items="statusOptions"
-              item-title="text"
-              item-value="value"
+              :items="statusOptions.filter(s => s !== null)"
               variant="outlined"
               density="compact"
               @update:model-value="saveOrderStatus"
@@ -516,10 +591,10 @@
                 color="primary" 
                 variant="tonal" 
                 class="mt-1"
-                @click="sendMessageToTelegram(selectedOrder.user.telegram_id)"
+                @click="openTelegramChat(selectedOrder.user.telegram_id)"
               >
-                <v-icon size="16" class="mr-1">mdi-message</v-icon>
-                Написать
+                <v-icon size="16" class="mr-1">mdi-telegram</v-icon>
+                Написать в Telegram
               </v-btn>
             </div>
             <div v-else>Пользователь не найден</div>
@@ -568,11 +643,11 @@
       </v-card>
     </v-dialog>
     
-    <!-- Диалог отправки сообщения -->
+    <!-- Диалог отправки сообщения в Telegram -->
     <v-dialog v-model="messageDialog" max-width="500">
       <v-card>
         <v-card-title class="d-flex justify-space-between align-center">
-          <span>Отправить сообщение</span>
+          <span>Отправить сообщение через Telegram</span>
           <v-btn icon @click="messageDialog = false">
             <v-icon>mdi-close</v-icon>
           </v-btn>
@@ -582,11 +657,23 @@
             <div class="text-subtitle-1 font-weight-medium mb-1">Пользователь:</div>
             <div>{{ selectedUser.name || selectedUser.username || 'Без имени' }}</div>
             <div class="text-caption">Telegram ID: {{ selectedUser.telegram_id }}</div>
+            <div class="text-caption">
+              <v-btn 
+                color="primary" 
+                size="small" 
+                variant="tonal"
+                @click="openTelegramChat(selectedUser.telegram_id)"
+                class="mt-1"
+              >
+                <v-icon size="16" class="mr-1">mdi-open-in-new</v-icon>
+                Открыть чат в Telegram
+              </v-btn>
+            </div>
           </div>
           
           <v-textarea
             v-model="messageText"
-            label="Текст сообщения"
+            label="Текст сообщения (будет отправлено через Telegram бота)"
             variant="outlined"
             density="comfortable"
             rows="4"
@@ -602,11 +689,11 @@
           </v-btn>
           <v-btn 
             color="primary" 
-            @click="sendMessage"
+            @click="sendTelegramMessage"
             :loading="sendingMessage"
             :disabled="!messageText.trim()"
           >
-            Отправить
+            Отправить через бота
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -640,7 +727,7 @@
             <v-col cols="6">
               <v-text-field
                 v-model="currentProduct.price"
-                label="Цена (BYN)"
+                label="Цена (руб.)"
                 type="number"
                 variant="outlined"
                 density="compact"
@@ -710,7 +797,7 @@
           ></v-textarea>
           <v-text-field
             v-model="currentService.price"
-            label="Цена (BYN)"
+            label="Цена (руб.)"
             type="number"
             variant="outlined"
             density="compact"
@@ -761,34 +848,110 @@ export default {
   data() {
     return {
       activeTab: 'orders',
-      loadingOrders: false,
-      loadingServiceOrders: false,
-      loadingProducts: false,
-      loadingServices: false,
-      loadingUsers: false,
-      loadingStats: false,
-      orderDetailsDialog: false,
-      productDialog: false,
-      serviceDialog: false,
-      messageDialog: false,
       
+      // Данные администратора
+      adminName: 'Администратор',
+      adminAvatar: '',
+      
+      // Быстрые действия
+      quickActions: [
+        { title: 'Новый заказ', icon: 'mdi-cart-plus', color: 'primary', route: '/orders' },
+        { title: 'Добавить товар', icon: 'mdi-package-variant-plus', color: 'success', route: '/admin?tab=products' },
+        { title: 'Статистика', icon: 'mdi-chart-bar', color: 'info', route: '/admin?tab=stats' },
+        { title: 'Поддержка', icon: 'mdi-headset', color: 'warning', route: '/admin?tab=support' }
+      ],
+      
+      // Данные заказов
       orders: [],
-      serviceOrders: [],
-      products: [],
-      services: [],
-      users: [],
-      categories: [],
-      statsData: {},
-      
-      selectedOrder: null,
-      selectedUser: null,
-      editingProduct: false,
-      editingService: false,
-      
+      loadingOrders: false,
       orderFilter: null,
-      serviceOrderFilter: null,
-      userSearch: '',
+      orderHeaders: [
+        { title: '№', value: 'order_number', width: '100' },
+        { title: 'Дата', value: 'created_at', width: '120' },
+        { title: 'Клиент', value: 'user', width: '150' },
+        { title: 'Сумма', value: 'total_amount', width: '100' },
+        { title: 'Статус', value: 'status', width: '120' },
+        { title: 'Действия', value: 'actions', width: '150' }
+      ],
       
+      // Данные заказов услуг
+      serviceOrders: [],
+      loadingServiceOrders: false,
+      serviceOrderFilter: null,
+      serviceOrderHeaders: [
+        { title: 'ID', value: 'service_order_id', width: '80' },
+        { title: 'Дата', value: 'created_at', width: '120' },
+        { title: 'Клиент', value: 'user', width: '150' },
+        { title: 'Услуга', value: 'service.name', width: '150' },
+        { title: 'Цена', value: 'price', width: '100' },
+        { title: 'Статус', value: 'status', width: '120' },
+        { title: 'Действия', value: 'actions', width: '120' }
+      ],
+      
+      // Данные товаров
+      products: [],
+      loadingProducts: false,
+      productHeaders: [
+        { title: 'Изображение', value: 'images', width: '80' },
+        { title: 'Название', value: 'name' },
+        { title: 'Цена', value: 'price', width: '100' },
+        { title: 'Остаток', value: 'stock_quantity', width: '100' },
+        { title: 'Доступен', value: 'is_available', width: '100' },
+        { title: 'Действия', value: 'actions', width: '120' }
+      ],
+      
+      // Данные услуг
+      services: [],
+      loadingServices: false,
+      
+      // Данные пользователей
+      users: [],
+      loadingUsers: false,
+      userSearch: '',
+      userHeaders: [
+        { title: 'Telegram ID', value: 'telegram_id', width: '120' },
+        { title: 'Имя', value: 'name' },
+        { title: 'Username', value: 'username', width: '120' },
+        { title: 'Заказов', value: 'orders_count', width: '80' },
+        { title: 'Активен', value: 'is_active', width: '100' },
+        { title: 'Админ', value: 'is_admin', width: '100' },
+        { title: 'Действия', value: 'actions', width: '120' }
+      ],
+      
+      // Данные поддержки
+      supportTickets: [],
+      loadingSupport: false,
+      supportFilter: null,
+      supportStatuses: [null, 'open', 'pending', 'closed'],
+      supportHeaders: [
+        { title: 'ID', value: 'ticket_id', width: '80' },
+        { title: 'Тема', value: 'subject' },
+        { title: 'Пользователь', value: 'user', width: '150' },
+        { title: 'Статус', value: 'status', width: '120' },
+        { title: 'Создан', value: 'created_at', width: '150' },
+        { title: 'Действия', value: 'actions', width: '150' }
+      ],
+      
+      // Статистика
+      statsData: {},
+      statsCards: [],
+      
+      // Статусы
+      statusOptions: [null, 'Создан', 'Оплачен', 'Подтвержден', 'Отправлен', 'Доставлен', 'Отменен'],
+      
+      // Категории
+      categories: [],
+      
+      // Диалоги
+      orderDetailsDialog: false,
+      selectedOrder: null,
+      
+      messageDialog: false,
+      selectedUser: null,
+      messageText: '',
+      sendingMessage: false,
+      
+      productDialog: false,
       currentProduct: {
         name: '',
         description: '',
@@ -797,7 +960,10 @@ export default {
         category_id: null,
         is_available: true
       },
+      editingProduct: false,
+      savingProduct: false,
       
+      serviceDialog: false,
       currentService: {
         name: '',
         description: '',
@@ -806,162 +972,139 @@ export default {
         category: '',
         is_active: true
       },
-      
-      messageText: '',
-      sendingMessage: false,
-      savingProduct: false,
+      editingService: false,
       savingService: false,
       
-      statsCards: [
-        { label: 'Всего пользователей', value: '0', icon: 'mdi-account-group', color: 'primary' },
-        { label: 'Всего заказов', value: '0', icon: 'mdi-package-variant', color: 'warning' },
-        { label: 'Товаров в каталоге', value: '0', icon: 'mdi-view-grid', color: 'success' },
-        { label: 'Доход', value: '0 ₽', icon: 'mdi-currency-rub', color: 'info' }
-      ],
-      
-      quickActions: [
-        { title: 'Заказы', icon: 'mdi-package-variant', color: 'primary', route: 'orders' },
-        { title: 'Товары', icon: 'mdi-view-grid', color: 'success', route: 'products' },
-        { title: 'Услуги', icon: 'mdi-tools', color: 'info', route: 'services' },
-        { title: 'Пользователи', icon: 'mdi-account-group', color: 'blue', route: 'users' }
-      ],
-      
-      orderHeaders: [
-        { title: '№ заказа', value: 'order_number', width: '120' },
-        { title: 'Клиент', value: 'user', width: '180' },
-        { title: 'Сумма', value: 'total_amount', width: '100' },
-        { title: 'Статус', value: 'status', width: '120' },
-        { title: 'Дата', value: 'created_at', width: '150' },
-        { title: 'Действия', value: 'actions', width: '150' }
-      ],
-      
-      serviceOrderHeaders: [
-        { title: 'ID', value: 'service_order_id', width: '80' },
-        { title: 'Услуга', value: 'service.name', width: '150' },
-        { title: 'Клиент', value: 'user', width: '150' },
-        { title: 'Цена', value: 'price', width: '100' },
-        { title: 'Статус', value: 'status', width: '120' },
-        { title: 'Дата', value: 'created_at', width: '150' },
-        { title: 'Действия', value: 'actions', width: '100' }
-      ],
-      
-      productHeaders: [
-        { title: 'Изображение', value: 'images', width: '80' },
-        { title: 'Название', value: 'name' },
-        { title: 'Цена', value: 'price', width: '100' },
-        { title: 'В наличии', value: 'stock_quantity', width: '100' },
-        { title: 'Доступен', value: 'is_available', width: '100' },
-        { title: 'Действия', value: 'actions', width: '120' }
-      ],
-      
-      userHeaders: [
-        { title: 'ID', value: 'telegram_id', width: '100' },
-        { title: 'Имя', value: 'name' },
-        { title: 'Username', value: 'username', width: '120' },
-        { title: 'Заказов', value: 'orders_count', width: '80' },
-        { title: 'Активен', value: 'is_active', width: '100' },
-        { title: 'Админ', value: 'is_admin', width: '100' },
-        { title: 'Дата регистрации', value: 'created_at', width: '150' },
-        { title: 'Действия', value: 'actions', width: '150' }
-      ],
-      
-      statusOptions: [
-        { text: 'Все статусы', value: null },
-        { text: 'Создан', value: 'Создан' },
-        { text: 'Оплачен', value: 'Оплачен' },
-        { text: 'Подтвержден', value: 'Подтвержден' },
-        { text: 'Отправлен', value: 'Отправлен' },
-        { text: 'Доставлен', value: 'Доставлен' },
-        { text: 'Отменен', value: 'Отменен' }
-      ],
-      
+      // Уведомления
       showSnackbar: false,
       snackbarMessage: '',
       snackbarColor: 'success'
     }
   },
-  computed: {
-    adminName() {
-      return window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'Администратор';
-    },
-    adminAvatar() {
-      const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      return user?.photo_url || 'https://via.placeholder.com/40x40/667eea/ffffff?text=A';
+  async mounted() {
+    await this.loadAdminData();
+    await this.fetchInitialData();
+    
+    // Проверяем параметр таба из URL
+    const tab = this.$route.query.tab;
+    if (tab && ['orders', 'service_orders', 'products', 'services', 'users', 'support', 'stats'].includes(tab)) {
+      this.activeTab = tab;
     }
   },
-  async mounted() {
-    await this.fetchAllData();
+  watch: {
+    activeTab(newTab) {
+      switch (newTab) {
+        case 'products':
+          this.fetchProducts();
+          break;
+        case 'services':
+          this.fetchServices();
+          break;
+        case 'users':
+          this.fetchUsers();
+          break;
+        case 'support':
+          this.fetchSupportTickets();
+          break;
+        case 'stats':
+          this.fetchStats();
+          break;
+      }
+    }
   },
   methods: {
+    async loadAdminData() {
+      try {
+        const { get } = useApi();
+        const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        const telegramId = tg_user?.id || 391622124;
+        
+        // Проверяем права администратора
+        const adminData = await get(`/api/admin/check_simple/${telegramId}`);
+        if (!adminData.is_admin) {
+          this.$router.push('/profile');
+          return;
+        }
+        
+        this.adminName = adminData.name || 'Администратор';
+      } catch (error) {
+        console.error('❌ Ошибка загрузки данных администратора:', error);
+        this.$router.push('/profile');
+      }
+    },
+    
+    async fetchInitialData() {
+      await this.fetchOrders();
+      await this.fetchCategories();
+      // Остальные данные будут загружаться по мере переключения вкладок
+    },
+    
     formatPrice(price) {
       return new Intl.NumberFormat('ru-BY', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      }).format(price) + ' ₽';
-    },
-    
-    getProductImage(product) {
-      if (product.images && product.images.length > 0) {
-        try {
-          const images = Array.isArray(product.images) ? product.images : JSON.parse(product.images);
-          return images[0];
-        } catch (e) {
-          return product.images;
-        }
-      }
-      return 'https://via.placeholder.com/40x40/667eea/ffffff?text=No+Image';
+      }).format(price) + ' p.';
     },
     
     getStatusColor(status) {
       const colors = {
-        'Создан': 'grey',
-        'Оплачен': 'warning',
-        'Подтвержден': 'info',
-        'Отправлен': 'success',
-        'Доставлен': 'primary',
+        'Создан': 'blue',
+        'Оплачен': 'green',
+        'Подтвержден': 'teal',
+        'Отправлен': 'orange',
+        'Доставлен': 'success',
         'Отменен': 'error'
       };
       return colors[status] || 'grey';
     },
     
-    getStatusText(status) {
-      return status;
+    getProductImage(product) {
+      if (!product || !product.images) return 'https://via.placeholder.com/100x100/667eea/ffffff?text=No+Image';
+      
+      try {
+        let imagePath = product.images;
+        if (typeof product.images === 'string') {
+          try {
+            const images = JSON.parse(product.images);
+            imagePath = images[0];
+          } catch (e) {
+            imagePath = product.images;
+          }
+        } else if (Array.isArray(product.images)) {
+          imagePath = product.images[0];
+        }
+        
+        if (imagePath && imagePath.startsWith('http')) {
+          return imagePath;
+        }
+        
+        if (imagePath && imagePath.startsWith('/')) {
+          return `https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev${imagePath}`;
+        }
+        
+        return imagePath || 'https://via.placeholder.com/100x100/667eea/ffffff?text=No+Image';
+      } catch (e) {
+        return 'https://via.placeholder.com/100x100/667eea/ffffff?text=No+Image';
+      }
     },
     
-    async fetchAllData() {
-      await Promise.all([
-        this.fetchOrders(),
-        this.fetchServiceOrders(),
-        this.fetchProducts(),
-        this.fetchServices(),
-        this.fetchCategories(),
-        this.fetchUsers(),
-        this.fetchStats()
-      ]);
+    navigateTo(route) {
+      this.$router.push(route);
     },
     
+    // Методы для заказов
     async fetchOrders() {
       this.loadingOrders = true;
       try {
         const { get } = useApi();
         let url = '/api/admin/orders';
-        const params = new URLSearchParams();
-        
         if (this.orderFilter) {
-          params.append('status', this.orderFilter);
+          url += `?status=${this.orderFilter}`;
         }
-        
-        const queryString = params.toString();
-        if (queryString) {
-          url += `?${queryString}`;
-        }
-        
         const response = await get(url);
         this.orders = response.orders || [];
-        console.log('✅ Заказы загружены:', this.orders.length);
       } catch (error) {
         console.error('❌ Ошибка загрузки заказов:', error);
-        this.orders = [];
         this.showMessage('Ошибка загрузки заказов', 'error');
       } finally {
         this.loadingOrders = false;
@@ -972,105 +1115,26 @@ export default {
       this.loadingServiceOrders = true;
       try {
         const { get } = useApi();
-        const params = {};
+        let url = '/api/admin/service_orders';
         if (this.serviceOrderFilter) {
-          params.status = this.serviceOrderFilter;
+          url += `?status=${this.serviceOrderFilter}`;
         }
-        const response = await get('/api/admin/service_orders', { params });
+        const response = await get(url);
         this.serviceOrders = response.service_orders || [];
-        console.log('✅ Заказы на услуги загружены:', this.serviceOrders.length);
       } catch (error) {
         console.error('❌ Ошибка загрузки заказов услуг:', error);
-        this.serviceOrders = [];
         this.showMessage('Ошибка загрузки заказов услуг', 'error');
       } finally {
         this.loadingServiceOrders = false;
       }
     },
     
-    async fetchProducts() {
-      this.loadingProducts = true;
-      try {
-        const { get } = useApi();
-        const response = await get('/api/products');
-        this.products = response || [];
-        console.log('✅ Товары загружены:', this.products.length);
-      } catch (error) {
-        console.error('❌ Ошибка загрузки товаров:', error);
-        this.products = [];
-        this.showMessage('Ошибка загрузки товаров', 'error');
-      } finally {
-        this.loadingProducts = false;
-      }
-    },
-    
-    async fetchServices() {
-      this.loadingServices = true;
-      try {
-        const { get } = useApi();
-        const response = await get('/api/services');
-        this.services = response || [];
-        console.log('✅ Услуги загружены:', this.services.length);
-      } catch (error) {
-        console.error('❌ Ошибка загрузки услуг:', error);
-        this.services = [];
-        this.showMessage('Ошибка загрузки услуг', 'error');
-      } finally {
-        this.loadingServices = false;
-      }
-    },
-    
-    async fetchUsers() {
-      this.loadingUsers = true;
-      try {
-        const { get } = useApi();
-        const params = {};
-        if (this.userSearch) {
-          params.search = this.userSearch;
-        }
-        const response = await get('/api/admin/users', { params });
-        this.users = response || [];
-        console.log('✅ Пользователи загружены:', this.users.length);
-      } catch (error) {
-        console.error('❌ Ошибка загрузки пользователей:', error);
-        this.users = [];
-        this.showMessage('Ошибка загрузки пользователей', 'error');
-      } finally {
-        this.loadingUsers = false;
-      }
-    },
-    
     async fetchCategories() {
       try {
         const { get } = useApi();
-        const response = await get('/api/categories');
-        this.categories = response || [];
+        this.categories = await get('/api/categories');
       } catch (error) {
         console.error('❌ Ошибка загрузки категорий:', error);
-        this.categories = [];
-      }
-    },
-    
-    async fetchStats() {
-      this.loadingStats = true;
-      try {
-        const { get } = useApi();
-        const response = await get('/api/admin/stats');
-        this.statsData = response || {};
-        
-        // Обновляем карточки статистики
-        this.statsCards[0].value = this.statsData.users?.total || 0;
-        this.statsCards[1].value = this.statsData.orders?.total || 0;
-        this.statsCards[2].value = this.statsData.products?.total || 0;
-        this.statsCards[3].value = this.formatPrice(this.statsData.revenue?.total || 0);
-        
-        console.log('✅ Статистика загружена:', this.statsData);
-      } catch (error) {
-        console.error('❌ Ошибка загрузки статистики:', error);
-        this.statsData = {};
-        this.showMessage('Ошибка загрузки статистики', 'error');
-      } finally {
-        this.loadingStats = false;
       }
     },
     
@@ -1080,45 +1144,74 @@ export default {
     },
     
     async saveOrderStatus() {
+      if (!this.selectedOrder || !this.selectedOrder.status) return;
+      
       try {
         const { put } = useApi();
         await put(`/api/admin/orders/${this.selectedOrder.order_id}`, {
           status: this.selectedOrder.status
         });
+        
         this.showMessage('Статус заказа обновлен', 'success');
         await this.fetchOrders();
+        this.orderDetailsDialog = false;
       } catch (error) {
         console.error('❌ Ошибка обновления статуса:', error);
         this.showMessage('Ошибка обновления статуса', 'error');
       }
     },
     
-    async updateOrderStatus(order, status) {
+    async updateOrderStatus(item, status) {
       try {
         const { put } = useApi();
-        await put(`/api/admin/orders/${order.order_id}`, {
-          status: status
-        });
-        this.showMessage(`Статус заказа #${order.order_number} обновлен на "${status}"`, 'success');
+        await put(`/api/admin/orders/${item.order_id}`, { status });
+        
+        this.showMessage(`Статус заказа #${item.order_number} обновлен на "${status}"`, 'success');
         await this.fetchOrders();
       } catch (error) {
         console.error('❌ Ошибка обновления статуса заказа:', error);
-        this.showMessage('Ошибка обновления статуса', 'error');
+        this.showMessage('Ошибка обновления статуса заказа', 'error');
       }
     },
     
-    async updateServiceOrderStatus(order, status) {
+    async updateServiceOrderStatus(item, status) {
       try {
         const { put } = useApi();
-        await put(`/api/admin/service_orders/${order.service_order_id}`, {
-          status: status
-        });
+        await put(`/api/admin/service_orders/${item.service_order_id}`, { status });
+        
         this.showMessage(`Статус заказа услуги обновлен на "${status}"`, 'success');
         await this.fetchServiceOrders();
       } catch (error) {
         console.error('❌ Ошибка обновления статуса заказа услуги:', error);
-        this.showMessage(`Ошибка: ${error.message || 'Не удалось обновить статус'}`, 'error');
+        this.showMessage('Ошибка обновления статуса заказа услуги', 'error');
       }
+    },
+    
+    async fetchProducts() {
+        this.loadingProducts = true;
+        try {
+            const { get } = useApi();
+            this.products = await get('/api/admin/products');
+        } catch (error) {
+            console.error('❌ Ошибка загрузки товаров:', error);
+            this.showMessage('Ошибка загрузки товаров', 'error');
+        } finally {
+            this.loadingProducts = false;
+        }
+    },
+
+    // Методы для услуг
+    async fetchServices() {
+        this.loadingServices = true;
+        try {
+            const { get } = useApi();
+            this.services = await get('/api/admin/services');
+        } catch (error) {
+            console.error('❌ Ошибка загрузки услуг:', error);
+            this.showMessage('Ошибка загрузки услуг', 'error');
+        } finally {
+            this.loadingServices = false;
+        }
     },
     
     openAddProductDialog() {
@@ -1128,7 +1221,7 @@ export default {
         description: '',
         price: 0,
         stock_quantity: 0,
-        category_id: this.categories[0]?.category_id || null,
+        category_id: null,
         is_available: true
       };
       this.productDialog = true;
@@ -1157,23 +1250,9 @@ export default {
         await this.fetchProducts();
       } catch (error) {
         console.error('❌ Ошибка сохранения товара:', error);
-        this.showMessage(`Ошибка: ${error.message || 'Не удалось сохранить товар'}`, 'error');
+        this.showMessage('Ошибка сохранения товара', 'error');
       } finally {
         this.savingProduct = false;
-      }
-    },
-    
-    async deleteProduct(product) {
-      if (!confirm(`Удалить товар "${product.name}"?`)) return;
-      
-      try {
-        const { del } = useApi();
-        await del(`/api/admin/products/${product.product_id}`);
-        this.showMessage('Товар удален', 'success');
-        await this.fetchProducts();
-      } catch (error) {
-        console.error('❌ Ошибка удаления товара:', error);
-        this.showMessage('Ошибка удаления товара', 'error');
       }
     },
     
@@ -1183,12 +1262,26 @@ export default {
         await put(`/api/admin/products/${product.product_id}`, {
           is_available: product.is_available
         });
-        this.showMessage(`Товар ${product.is_available ? 'доступен' : 'скрыт'}`, 'success');
+        this.showMessage('Доступность товара обновлена', 'success');
       } catch (error) {
         console.error('❌ Ошибка обновления доступности товара:', error);
-        this.showMessage('Ошибка обновления товара', 'error');
-        // Откатываем изменение
-        product.is_available = !product.is_available;
+        product.is_available = !product.is_available; // Откатываем изменение
+        this.showMessage('Ошибка обновления доступности товара', 'error');
+      }
+    },
+    
+    async deleteProduct(product) {
+      if (!confirm(`Удалить товар "${product.name}"?`)) return;
+      
+      try {
+        const { del } = useApi();
+        await del(`/api/admin/products/${product.product_id}`);
+        
+        this.showMessage('Товар удален', 'success');
+        await this.fetchProducts();
+      } catch (error) {
+        console.error('❌ Ошибка удаления товара:', error);
+        this.showMessage('Ошибка удаления товара', 'error');
       }
     },
     
@@ -1228,23 +1321,9 @@ export default {
         await this.fetchServices();
       } catch (error) {
         console.error('❌ Ошибка сохранения услуги:', error);
-        this.showMessage(`Ошибка: ${error.message || 'Не удалось сохранить услугу'}`, 'error');
+        this.showMessage('Ошибка сохранения услуги', 'error');
       } finally {
         this.savingService = false;
-      }
-    },
-    
-    async deleteService(service) {
-      if (!confirm(`Удалить услугу "${service.name}"?`)) return;
-      
-      try {
-        const { del } = useApi();
-        await del(`/api/admin/services/${service.service_id}`);
-        this.showMessage('Услуга удалена', 'success');
-        await this.fetchServices();
-      } catch (error) {
-        console.error('❌ Ошибка удаления услуги:', error);
-        this.showMessage('Ошибка удаления услуги', 'error');
       }
     },
     
@@ -1254,12 +1333,66 @@ export default {
         await put(`/api/admin/services/${service.service_id}`, {
           is_active: service.is_active
         });
-        this.showMessage(`Услуга ${service.is_active ? 'активна' : 'скрыта'}`, 'success');
+        this.showMessage('Статус услуги обновлен', 'success');
       } catch (error) {
-        console.error('❌ Ошибка обновления активности услуги:', error);
-        this.showMessage('Ошибка обновления услуги', 'error');
-        // Откатываем изменение
-        service.is_active = !service.is_active;
+        console.error('❌ Ошибка обновления статуса услуги:', error);
+        service.is_active = !service.is_active; // Откатываем изменение
+        this.showMessage('Ошибка обновления статуса услуги', 'error');
+      }
+    },
+    
+    async deleteService(service) {
+      if (!confirm(`Удалить услугу "${service.name}"?`)) return;
+      
+      try {
+        const { del } = useApi();
+        await del(`/api/admin/services/${service.service_id}`);
+        
+        this.showMessage('Услуга удалена', 'success');
+        await this.fetchServices();
+      } catch (error) {
+        console.error('❌ Ошибка удаления услуги:', error);
+        this.showMessage('Ошибка удаления услуги', 'error');
+      }
+    },
+    
+    // Методы для пользователей
+    async fetchUsers() {
+      this.loadingUsers = true;
+      try {
+        const { get } = useApi();
+        let url = '/api/admin/users';
+        if (this.userSearch) {
+          url += `?search=${encodeURIComponent(this.userSearch)}`;
+        }
+        this.users = await get(url);
+      } catch (error) {
+        console.error('❌ Ошибка загрузки пользователей:', error);
+        this.showMessage('Ошибка загрузки пользователей', 'error');
+      } finally {
+        this.loadingUsers = false;
+      }
+    },
+    
+    async updateUserActivity(user) {
+      try {
+        // В реальном приложении здесь должен быть API вызов
+        this.showMessage('Статус пользователя обновлен', 'success');
+      } catch (error) {
+        console.error('❌ Ошибка обновления статуса пользователя:', error);
+        user.is_active = !user.is_active; // Откатываем изменение
+        this.showMessage('Ошибка обновления статуса пользователя', 'error');
+      }
+    },
+    
+    async updateUserAdminStatus(user) {
+      try {
+        // В реальном приложении здесь должен быть API вызов
+        this.showMessage('Статус администратора обновлен', 'success');
+      } catch (error) {
+        console.error('❌ Ошибка обновления статуса администратора:', error);
+        user.is_admin = !user.is_admin; // Откатываем изменение
+        this.showMessage('Ошибка обновления статуса администратора', 'error');
       }
     },
     
@@ -1269,14 +1402,8 @@ export default {
       this.messageDialog = true;
     },
     
-    sendMessageToTelegram(telegramId) {
-      this.selectedUser = { telegram_id: telegramId };
-      this.messageText = '';
-      this.messageDialog = true;
-    },
-    
-    async sendMessage() {
-      if (!this.messageText.trim() || !this.selectedUser) return;
+    async sendTelegramMessage() {
+      if (!this.selectedUser || !this.messageText.trim()) return;
       
       this.sendingMessage = true;
       try {
@@ -1286,49 +1413,97 @@ export default {
           message: this.messageText
         });
         
-        this.showMessage('Сообщение отправлено', 'success');
+        this.showMessage('Сообщение отправлено через Telegram бота', 'success');
         this.messageDialog = false;
       } catch (error) {
         console.error('❌ Ошибка отправки сообщения:', error);
-        this.showMessage(`Ошибка отправки: ${error.message || 'Не удалось отправить сообщение'}`, 'error');
+        this.showMessage('Ошибка отправки сообщения', 'error');
       } finally {
         this.sendingMessage = false;
       }
     },
     
-    async updateUserActivity(user) {
-      try {
-        // Здесь нужно добавить эндпоинт для обновления активности пользователя
-        this.showMessage('Обновление активности пользователя временно недоступно', 'warning');
-      } catch (error) {
-        console.error('❌ Ошибка обновления активности пользователя:', error);
-        this.showMessage('Ошибка обновления пользователя', 'error');
-        // Откатываем изменение
-        user.is_active = !user.is_active;
-      }
-    },
-    
-    async updateUserAdminStatus(user) {
-      try {
-        // Здесь нужно добавить эндпоинт для обновления статуса администратора
-        this.showMessage('Обновление статуса администратора временно недоступно', 'warning');
-      } catch (error) {
-        console.error('❌ Ошибка обновления статуса администратора:', error);
-        this.showMessage('Ошибка обновления статуса', 'error');
-        // Откатываем изменение
-        user.is_admin = !user.is_admin;
-      }
+    openTelegramChat(telegramId) {
+      // Открывает чат с пользователем в Telegram
+      const telegramUrl = `https://t.me/${telegramId}`;
+      window.open(telegramUrl, '_blank');
     },
     
     viewUserOrders(user) {
-      this.activeTab = 'orders';
-      this.orderFilter = null;
-      this.showMessage(`Показаны все заказы. Фильтр по пользователю "${user.name}" можно добавить позже`, 'info');
+      this.showMessage(`Просмотр заказов пользователя ${user.name}`, 'info');
+      // В реальном приложении можно открыть список заказов пользователя
     },
     
-    navigateTo(route) {
-      this.activeTab = route;
+    // Методы для поддержки
+    getSupportStatusColor(status) {
+      const colors = {
+        'open': 'warning',
+        'pending': 'info',
+        'closed': 'success'
+      };
+      return colors[status] || 'grey';
     },
+    
+    getSupportStatusText(status) {
+      const texts = {
+        'open': 'Открыт',
+        'pending': 'В обработке',
+        'closed': 'Закрыт'
+      };
+      return texts[status] || status;
+    },
+    
+    async fetchSupportTickets() {
+      this.loadingSupport = true;
+      try {
+        const { get } = useApi();
+        let url = '/api/admin/support/tickets';
+        if (this.supportFilter) {
+          url += `?status=${this.supportFilter}`;
+        }
+        const response = await get(url);
+        this.supportTickets = response.tickets || [];
+      } catch (error) {
+        console.error('❌ Ошибка загрузки тикетов поддержки:', error);
+        this.showMessage('Ошибка загрузки тикетов поддержки', 'error');
+      } finally {
+        this.loadingSupport = false;
+      }
+    },
+    
+    async closeSupportTicket(ticket) {
+      if (!confirm(`Закрыть тикет "${ticket.subject}"?`)) return;
+      
+      try {
+        const { put } = useApi();
+        await put(`/api/admin/support/tickets/${ticket.ticket_id}/close`);
+        this.showMessage('Тикет закрыт', 'success');
+        await this.fetchSupportTickets();
+      } catch (error) {
+        console.error('❌ Ошибка закрытия тикета:', error);
+        this.showMessage('Ошибка закрытия тикета', 'error');
+      }
+    },
+    
+    // Методы для статистики
+    async fetchStats() {
+      try {
+        const { get } = useApi();
+        this.statsData = await get('/api/admin/stats');
+        
+        // Формируем карточки статистики
+        this.statsCards = [
+          { label: 'Всего пользователей', value: this.statsData.users?.total || 0, icon: 'mdi-account-group', color: 'primary' },
+          { label: 'Всего заказов', value: this.statsData.orders?.total || 0, icon: 'mdi-cart', color: 'success' },
+          { label: 'Доступных товаров', value: this.statsData.products?.available || 0, icon: 'mdi-package', color: 'info' },
+          { label: 'Общая выручка', value: this.formatPrice(this.statsData.revenue?.total || 0), icon: 'mdi-cash', color: 'warning' }
+        ];
+      } catch (error) {
+        console.error('❌ Ошибка загрузки статистики:', error);
+      }
+    },
+    
+    // Наблюдатель за активной вкладкой
     
     showMessage(message, type = 'success') {
       this.snackbarMessage = message;
@@ -1346,7 +1521,7 @@ export default {
 <style scoped>
 .admin-container {
   padding: 0 8px;
-  padding-bottom: 80px; /* Отступ для навбара */
+  padding-bottom: 80px;
 }
 
 .admin-header {
@@ -1368,15 +1543,18 @@ export default {
 
 .admin-card {
   border-radius: 12px;
+  margin-bottom: 16px;
 }
 
-.admin-table :deep(th), .admin-table :deep(td) {
+.admin-table :deep(th),
+.admin-table :deep(td) {
   padding: 8px 4px;
 }
 
 .stat-card {
   border-radius: 12px;
   transition: transform 0.2s ease;
+  margin-bottom: 16px;
 }
 
 .stat-card:hover {

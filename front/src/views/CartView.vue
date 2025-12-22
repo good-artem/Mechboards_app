@@ -407,11 +407,12 @@ export default {
         async fetchCart() {
             this.loading = true;
             try {
-                const { get, endpoints } = useApi();
+                const { get } = useApi();
                 const tg_user = window.Telegram?.WebApp?.initDataUnsafe?.user;
                 const telegramId = tg_user?.id || 391622124;
                 
-                const cartData = await get(endpoints.cart.get(telegramId));
+                // Используйте правильный endpoint
+                const cartData = await get(`/api/cart/${telegramId}`);
                 this.cartData = cartData || { 
                     items: [], 
                     service_items: [], 
@@ -479,8 +480,9 @@ export default {
             
             try {
                 const { del } = useApi();
+                // Отправляем данные в теле запроса
                 await del('/api/cart/remove', {
-                    cart_item_id: item.cart_item_id
+                    cart_item_id: item.cart_item_id 
                 });
                 
                 await this.fetchCart();
@@ -493,7 +495,7 @@ export default {
                 this.removingItemId = null;
             }
         },
-        
+
         async removeServiceFromCart(serviceItem) {
             if (!serviceItem || !serviceItem.cart_service_item_id) {
                 console.error('Invalid service item for removal:', serviceItem);

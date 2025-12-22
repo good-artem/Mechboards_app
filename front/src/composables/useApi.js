@@ -132,14 +132,25 @@ export function useApi() {
   const put = (endpoint, data, options = {}) =>
     apiRequest(endpoint, { ...options, method: 'PUT', body: data });
   
-  // ИСПРАВЛЕНИЕ: Правильно обрабатываем DELETE запросы
   const del = (endpoint, data = null, options = {}) => {
-    // Для DELETE запросов, если есть данные, отправляем их в body
-    const requestOptions = { ...options, method: 'DELETE' };
-    if (data) {
-      requestOptions.body = data;
-    }
-    return apiRequest(endpoint, requestOptions);
+      // Для DELETE запросов
+      const fetchOptions = {
+          ...options,
+          method: 'DELETE',
+          headers: {
+              'Content-Type': 'application/json',
+              ...getAuthHeaders(),
+              ...options.headers
+          }
+      };
+
+      // Если есть данные, добавляем их как тело запроса
+      if (data) {
+          fetchOptions.body = JSON.stringify(data);
+      }
+      
+      // Используем apiRequest без построения query параметров
+      return apiRequest(endpoint, fetchOptions);
   };
 
   const getBaseUrl = () => API_CONFIG.getBaseUrl();

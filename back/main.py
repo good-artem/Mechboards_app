@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News, Service, ServiceOrder, OrderStatus, CartServiceItem
+from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News, Service, ServiceOrder, OrderStatus, CartServiceItem, SupportTicket, SupportMessage
 from sqlalchemy import String, select, func, text
 from typing import List, Optional
 import uuid
@@ -17,6 +17,7 @@ from urllib.parse import parse_qsl
 from sqlalchemy.orm import selectinload
 from fastapi import Query
 from telegram_bot import bot
+from middleware import admin_middleware
 
 # Получаем токен бота из переменных окружения
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
@@ -151,22 +152,81 @@ class UpdateCartServiceItemRequest(BaseModel):
 class RemoveCartServiceItemRequest(BaseModel):
     cart_service_item_id: int
 
+# Добавьте эти модели после других Pydantic моделей
+class ProductCreateRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    stock_quantity: int = 0
+    category_id: Optional[int] = None
+    is_available: bool = True
+
+class ProductUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    stock_quantity: Optional[int] = None
+    category_id: Optional[int] = None
+    is_available: Optional[bool] = None
+
+class ServiceCreateRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    duration: Optional[str] = None
+    category: Optional[str] = None
+    is_active: bool = True
+
+class ServiceUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    duration: Optional[str] = None
+    category: Optional[str] = None
+    is_active: Optional[bool] = None
+
+# Модель для отправки сообщения
+class SendMessageRequest(BaseModel):
+    telegram_id: int
+    message: str
+    message_type: str = "text"  # text, photo, document
+
+# В main.py добавьте:
+class UpdateServiceOrderStatusRequest(BaseModel):
+    status: str
+
+class CreateTicketRequest(BaseModel):
+    telegram_id: int 
+    subject: str
+    message: str
+
+class SendSupportMessageRequest(BaseModel):
+    telegram_id: int
+    message: str
+
+class CloseTicketRequest(BaseModel):
+    ticket_id: int
+
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
     await init_db()
     print('Database initialized')
     yield
 
+# main.py - после создания app добавьте CORS
 app = FastAPI(title="Mechboards shop", lifespan=lifespan)
-app.mount("/assets", StaticFiles(directory="../front/src/assets"), name="assets")
 
+# Добавьте CORS middleware ПЕРЕД другими middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Для разработки, в проде укажите конкретные домены
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/assets", StaticFiles(directory="../front/src/assets"), name="assets")
+app.middleware("http")(admin_middleware)
 
 # Публичные эндпоинты (не требуют авторизации)
 @app.get("/api/categories")
@@ -574,8 +634,9 @@ async def create_order(
 ):
     async with async_session() as session:
         # Находим пользователя
+        telegram_id = request.telegram_id
         user_result = await session.execute(
-            select(User).where(User.telegram_id == request.telegram_id)
+            select(User).where(User.telegram_id == telegram_id)
         )
         user = user_result.scalar_one_or_none()
         if not user:
@@ -697,7 +758,7 @@ async def create_order(
             admin_message = (
                 f"🛒 <b>Новый заказ #{order_number}</b>\n"
                 f"Пользователь: {user.name} (ID: {telegram_id})\n"
-                f"Сумма: {total_amount:.2f} ₽\n"
+                f"Сумма: {total_amount:.2f} p.\n"
                 f"Статус: Создан"
             )
             await bot.send_admin_notification(admin_message)
@@ -798,6 +859,7 @@ async def order_service(request: CreateServiceOrderRequest): # Изменено:
             "message": f"Заказ на услугу '{service.name}' принят",
             "order_id": service_order.service_order_id
         }
+
 
 # ... (остальной код) ...
 @app.get("/api/users/{telegram_id}/orders")
@@ -1125,11 +1187,10 @@ async def get_all_users(
     offset: int = 0
 ):
     """Получить всех пользователей"""
-    # Пропускаем проверку Telegram для разработки
-    # Для продакшена нужно добавить проверку is_admin
-    
     async with async_session() as session:
-        query = select(User)
+        query = select(User).options(
+            selectinload(User.orders)
+        )
         
         if search:
             query = query.where(
@@ -1142,20 +1203,31 @@ async def get_all_users(
         result = await session.execute(query)
         users = result.scalars().all()
         
-        return [{
-            "user_id": user.user_id,
-            "telegram_id": user.telegram_id,
-            "username": user.username,
-            "name": user.name,
-            "phone": user.phone,
-            "email": user.email,
-            "address": user.address,
-            "created_at": user.created_at.isoformat(),
-            "is_active": user.is_active,
-            "is_admin": user.is_admin,
-            "orders_count": len(user.orders) if hasattr(user, 'orders') else 0
-        } for user in users]
-
+        # Получаем количество заказов для каждого пользователя отдельным запросом
+        users_list = []
+        for user in users:
+            # Получаем количество заказов пользователя
+            orders_count_result = await session.execute(
+                select(func.count(Order.order_id)).where(Order.user_id == user.user_id)
+            )
+            orders_count = orders_count_result.scalar() or 0
+            
+            users_list.append({
+                "user_id": user.user_id,
+                "telegram_id": user.telegram_id,
+                "username": user.username,
+                "name": user.name,
+                "phone": user.phone,
+                "email": user.email,
+                "address": user.address,
+                "created_at": user.created_at.isoformat(),
+                "is_active": user.is_active,
+                "is_admin": user.is_admin,
+                "orders_count": orders_count
+            })
+        
+        return users_list
+    
 @app.get("/api/admin/orders")
 async def get_all_orders(
     request: Request,
@@ -1353,11 +1425,63 @@ async def get_admin_stats():
             "recent_orders": recent_orders_list
         }
 
-# Модель для отправки сообщения
-class SendMessageRequest(BaseModel):
-    telegram_id: int
-    message: str
-    message_type: str = "text"  # text, photo, document
+@app.get("/api/admin/products")
+async def get_admin_products(
+    request: Request,
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """Получить все товары (включая недоступные)"""
+    async with async_session() as session:
+        query = select(Product)
+        
+        if search:
+            query = query.where(Product.name.ilike(f"%{search}%"))
+        
+        query = query.offset(offset).limit(limit)
+        result = await session.execute(query)
+        products = result.scalars().all()
+        
+        return [{
+            "product_id": p.product_id,
+            "name": p.name,
+            "description": p.description,
+            "price": float(p.price),
+            "stock_quantity": p.stock_quantity,
+            "category_id": p.category_id,
+            "is_available": p.is_available,
+            "images": json.loads(p.images) if p.images else []
+        } for p in products]
+
+@app.get("/api/admin/services")
+async def get_admin_services(
+    request: Request,
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """Получить все услуги (включая неактивные)"""
+    async with async_session() as session:
+        query = select(Service)
+        
+        if search:
+            query = query.where(Service.name.ilike(f"%{search}%"))
+        
+        query = query.offset(offset).limit(limit)
+        result = await session.execute(query)
+        services = result.scalars().all()
+        
+        return [{
+            "service_id": s.service_id,
+            "name": s.name,
+            "description": s.description,
+            "price": float(s.price),
+            "duration": s.duration,
+            "category": s.category,
+            "is_active": s.is_active,
+            "image_url": s.image_url or "https://via.placeholder.com/100x100/667eea/ffffff?text=Service"
+        } for s in services]
 
 # Обновите эндпоинт send_message:
 @app.post("/api/admin/send_message")
@@ -1394,24 +1518,17 @@ async def send_message(request: SendMessageRequest):
         }
 # Эндпоинты для управления товарами
 @app.post("/api/admin/products")
-async def create_product(
-    name: str = Form(...),
-    description: str = Form(None),
-    price: float = Form(...),
-    stock_quantity: int = Form(0),
-    category_id: Optional[int] = Form(None),
-    is_available: bool = Form(True)
-):
+async def create_product(request: ProductCreateRequest):
     """Создать новый товар"""
     async with async_session() as session:
         product = Product(
-            name=name,
-            description=description,
-            price=price,
-            stock_quantity=stock_quantity,
-            category_id=category_id,
-            is_available=is_available,
-            images="[]"  # Пустой массив изображений
+            name=request.name,
+            description=request.description,
+            price=request.price,
+            stock_quantity=request.stock_quantity,
+            category_id=request.category_id,
+            is_available=request.is_available,
+            images="[]"
         )
         session.add(product)
         await session.commit()
@@ -1426,12 +1543,7 @@ async def create_product(
 @app.put("/api/admin/products/{product_id}")
 async def update_product(
     product_id: int,
-    name: str = Form(None),
-    description: str = Form(None),
-    price: float = Form(None),
-    stock_quantity: int = Form(None),
-    category_id: Optional[int] = Form(None),
-    is_available: bool = Form(None)
+    request: ProductUpdateRequest
 ):
     """Обновить товар"""
     async with async_session() as session:
@@ -1443,18 +1555,18 @@ async def update_product(
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         
-        if name is not None:
-            product.name = name
-        if description is not None:
-            product.description = description
-        if price is not None:
-            product.price = price
-        if stock_quantity is not None:
-            product.stock_quantity = stock_quantity
-        if category_id is not None:
-            product.category_id = category_id
-        if is_available is not None:
-            product.is_available = is_available
+        if request.name is not None:
+            product.name = request.name
+        if request.description is not None:
+            product.description = request.description
+        if request.price is not None:
+            product.price = request.price
+        if request.stock_quantity is not None:
+            product.stock_quantity = request.stock_quantity
+        if request.category_id is not None:
+            product.category_id = request.category_id
+        if request.is_available is not None:
+            product.is_available = request.is_available
         
         await session.commit()
         
@@ -1479,23 +1591,16 @@ async def delete_product(product_id: int):
 
 # Эндпоинты для управления услугами
 @app.post("/api/admin/services")
-async def create_service(
-    name: str = Form(...),
-    description: str = Form(None),
-    price: float = Form(...),
-    duration: str = Form(None),
-    category: str = Form(None),
-    is_active: bool = Form(True)
-):
+async def create_service(request: ServiceCreateRequest):
     """Создать новую услугу"""
     async with async_session() as session:
         service = Service(
-            name=name,
-            description=description,
-            price=price,
-            duration=duration,
-            category=category,
-            is_active=is_active,
+            name=request.name,
+            description=request.description,
+            price=request.price,
+            duration=request.duration,
+            category=request.category,
+            is_active=request.is_active,
             image_url=None
         )
         session.add(service)
@@ -1511,12 +1616,7 @@ async def create_service(
 @app.put("/api/admin/services/{service_id}")
 async def update_service(
     service_id: int,
-    name: str = Form(None),
-    description: str = Form(None),
-    price: float = Form(None),
-    duration: str = Form(None),
-    category: str = Form(None),
-    is_active: bool = Form(None)
+    request: ServiceUpdateRequest
 ):
     """Обновить услугу"""
     async with async_session() as session:
@@ -1528,18 +1628,18 @@ async def update_service(
         if not service:
             raise HTTPException(status_code=404, detail="Service not found")
         
-        if name is not None:
-            service.name = name
-        if description is not None:
-            service.description = description
-        if price is not None:
-            service.price = price
-        if duration is not None:
-            service.duration = duration
-        if category is not None:
-            service.category = category
-        if is_active is not None:
-            service.is_active = is_active
+        if request.name is not None:
+            service.name = request.name
+        if request.description is not None:
+            service.description = request.description
+        if request.price is not None:
+            service.price = request.price
+        if request.duration is not None:
+            service.duration = request.duration
+        if request.category is not None:
+            service.category = request.category
+        if request.is_active is not None:
+            service.is_active = request.is_active
         
         await session.commit()
         
@@ -1564,13 +1664,17 @@ async def delete_service(service_id: int):
 
 @app.put("/api/admin/orders/{order_id}")
 async def update_order_status(order_id: int, request: dict):
+    """Обновить статус заказа"""
     status = request.get('status')
     if not status:
         raise HTTPException(status_code=422, detail="Status is required")
-    """Обновить статус заказа"""
+    
     async with async_session() as session:
+        # Загружаем заказ с пользователем и товарами
         result = await session.execute(
-            select(Order).where(Order.order_id == order_id)
+            select(Order)
+            .options(selectinload(Order.user), selectinload(Order.order_items))
+            .where(Order.order_id == order_id)
         )
         order = result.scalar_one_or_none()
         
@@ -1582,23 +1686,65 @@ async def update_order_status(order_id: int, request: dict):
         if status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status. Valid statuses: {valid_statuses}")
         
+        old_status = order.status
         order.status = status
         await session.commit()
         
+        # Отправляем уведомление пользователю
+        try:
+            if order.user and order.user.telegram_id:
+                # Формируем список товаров
+                items_text = "\n".join([
+                    f"• {item.product.name if item.product else 'Товар'} x{item.quantity}"
+                    for item in order.order_items
+                ])
+                
+                message = (
+                    f"📦 <b>Статус заказа обновлен</b>\n\n"
+                    f"Заказ #{order.order_number}\n"
+                    f"Статус: {old_status} → {status}\n"
+                    f"Сумма: {order.total_amount:.2f} p.\n"
+                    f"Товары:\n{items_text}\n\n"
+                    f"Благодарим за покупку! ❤️"
+                )
+                
+                await bot.send_message(
+                    chat_id=order.user.telegram_id,
+                    text=message,
+                    parse_mode="HTML"
+                )
+        except Exception as e:
+            print(f"❌ Ошибка отправки уведомления: {e}")
+        
+        # Отправляем уведомление администратору
+        try:
+            admin_message = (
+                f"📦 <b>Обновлен заказ #{order.order_number}</b>\n"
+                f"Пользователь: {order.user.name if order.user else 'Неизвестный'} "
+                f"(ID: {order.user.telegram_id if order.user else 'N/A'})\n"
+                f"Статус: {old_status} → {status}\n"
+                f"Сумма: {order.total_amount:.2f} p."
+            )
+            
+            await bot.send_admin_notification(admin_message)
+            
+        except Exception as e:
+            print(f"❌ Ошибка отправки уведомления администратору: {e}")
+        
         return {"status": "success", "message": "Статус заказа обновлен"}    
-
-# В main.py добавьте:
-class UpdateServiceOrderStatusRequest(BaseModel):
-    status: str
 
 @app.put("/api/admin/service_orders/{service_order_id}")
 async def update_service_order_status(
     service_order_id: int, 
     request: UpdateServiceOrderStatusRequest
 ):
+    """Обновить статус заказа услуги"""
     async with async_session() as session:
+        # Загружаем заказ услуги с пользователем и услугой
         result = await session.execute(
-            select(ServiceOrder).where(ServiceOrder.service_order_id == service_order_id)
+            select(ServiceOrder)
+            .options(selectinload(ServiceOrder.user), selectinload(ServiceOrder.service))
+            .where(ServiceOrder.service_order_id == service_order_id)
         )
         service_order = result.scalar_one_or_none()
         
@@ -1612,10 +1758,357 @@ async def update_service_order_status(
                 detail=f"Invalid status. Valid statuses: {valid_statuses}"
             )
         
+        old_status = service_order.status
         service_order.status = request.status
         await session.commit()
         
+        # Отправляем уведомление пользователю через бота
+        try:
+            if service_order.user and service_order.user.telegram_id:
+                user_message = (
+                    f"🛠️ <b>Статус заказа услуги обновлен</b>\n\n"
+                    f"Услуга: {service_order.service.name if service_order.service else 'Неизвестная услуга'}\n"
+                    f"Статус: {old_status} → {request.status}\n"
+                    f"Цена: {service_order.price:.2f} p.\n"
+                    f"Заказ #{service_order.service_order_id}"
+                )
+                
+                await bot.send_message(
+                    chat_id=service_order.user.telegram_id,
+                    text=user_message,
+                    parse_mode="HTML"
+                )
+        except Exception as e:
+            print(f"❌ Ошибка отправки уведомления пользователю: {e}")
+        
+        # Отправляем уведомление администратору
+        try:
+            admin_message = (
+                f"🛠️ <b>Обновлен заказ услуги #{service_order_id}</b>\n"
+                f"Услуга: {service_order.service.name if service_order.service else 'Неизвестная услуга'}\n"
+                f"Пользователь: {service_order.user.name if service_order.user else 'Неизвестный'} "
+                f"(ID: {service_order.user.telegram_id if service_order.user else 'N/A'})\n"
+                f"Статус: {old_status} → {request.status}\n"
+                f"Цена: {service_order.price:.2f} p."
+            )
+            
+            await bot.send_admin_notification(admin_message)
+            
+        except Exception as e:
+            print(f"❌ Ошибка отправки уведомления администратору: {e}")
+        
         return {"status": "success", "message": "Статус заказа услуги обновлен"}
+    
+@app.post("/api/support/tickets")
+async def create_support_ticket(request: CreateTicketRequest):
+    """Создать тикет поддержки"""
+    # Получаем telegram_id из тела запроса
+    telegram_id = request.telegram_id
+    
+    async with async_session() as session:
+        # Находим пользователя
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Создаем тикет
+        ticket = SupportTicket(
+            user_id=user.user_id,
+            subject=request.subject,
+            status='open'
+        )
+        session.add(ticket)
+        await session.commit()
+        await session.refresh(ticket)
+        
+        # Создаем первое сообщение
+        support_message = SupportMessage(
+            ticket_id=ticket.ticket_id,
+            user_id=user.user_id,
+            message=request.message,
+            is_from_admin=False
+        )
+        session.add(support_message)
+        await session.commit()
+        
+        # Отправляем уведомление администраторам
+        try:
+            admin_message = (
+                f"🆘 <b>Создан новый тикет поддержки</b>\n\n"
+                f"Тема: {request.subject}\n"
+                f"Пользователь: {user.name} (@{user.username})\n"
+                f"Telegram ID: {telegram_id}\n"
+                f"Сообщение: {request.message[:200]}..."
+            )
+            
+            await bot.send_admin_notification(admin_message)
+            
+        except Exception as e:
+            print(f"❌ Ошибка отправки уведомления: {e}")
+        
+        return {
+            "status": "success",
+            "ticket_id": ticket.ticket_id,
+            "message": "Тикет поддержки создан"
+        }
+    
+@app.get("/api/support/tickets")
+async def get_user_tickets(telegram_id: int = Query(...)):
+    """Получить тикеты пользователя"""
+    async with async_session() as session:
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Получаем тикеты пользователя
+        tickets_result = await session.execute(
+            select(SupportTicket)
+            .where(SupportTicket.user_id == user.user_id)
+            .order_by(SupportTicket.updated_at.desc())
+        )
+        tickets = tickets_result.scalars().all()
+        
+        tickets_list = []
+        for ticket in tickets:
+            # Получаем последнее сообщение
+            last_message_result = await session.execute(
+                select(SupportMessage)
+                .where(SupportMessage.ticket_id == ticket.ticket_id)
+                .order_by(SupportMessage.created_at.desc())
+                .limit(1)
+            )
+            last_message = last_message_result.scalar_one_or_none()
+            
+            tickets_list.append({
+                "ticket_id": ticket.ticket_id,
+                "subject": ticket.subject,
+                "status": ticket.status,
+                "created_at": ticket.created_at.isoformat(),
+                "updated_at": ticket.updated_at.isoformat(),
+                "last_message": last_message.message if last_message else "",
+                "last_message_time": last_message.created_at.isoformat() if last_message else None
+            })
+        
+        return tickets_list
+        
+@app.get("/api/support/tickets/{ticket_id}/messages")
+async def get_ticket_messages(ticket_id: int):
+    """Получить сообщения тикета"""
+    async with async_session() as session:
+        # Проверяем существование тикета
+        ticket_result = await session.execute(
+            select(SupportTicket).where(SupportTicket.ticket_id == ticket_id)
+        )
+        ticket = ticket_result.scalar_one_or_none()
+        
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        
+        # Получаем сообщения
+        messages_result = await session.execute(
+            select(SupportMessage)
+            .options(selectinload(SupportMessage.user))
+            .where(SupportMessage.ticket_id == ticket_id)
+            .order_by(SupportMessage.created_at.asc())
+        )
+        messages = messages_result.scalars().all()
+        
+        messages_list = []
+        for msg in messages:
+            messages_list.append({
+                "message_id": msg.message_id,
+                "message": msg.message,
+                "is_from_admin": msg.is_from_admin,
+                "created_at": msg.created_at.isoformat(),
+                "user": {
+                    "name": msg.user.name,
+                    "username": msg.user.username,
+                    "is_admin": msg.user.is_admin
+                } if msg.user else None
+            })
+        
+        return messages_list
+
+# Админ эндпоинты для поддержки
+@app.get("/api/admin/support/tickets")
+async def get_all_tickets(
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """Получить все тикеты поддержки"""
+    async with async_session() as session:
+        query = select(SupportTicket).options(
+            selectinload(SupportTicket.user)
+        )
+        
+        if status:
+            query = query.where(SupportTicket.status == status)
+        
+        query = query.order_by(SupportTicket.updated_at.desc()).limit(limit).offset(offset)
+        result = await session.execute(query)
+        tickets = result.scalars().all()
+        
+        tickets_list = []
+        for ticket in tickets:
+            # Получаем количество сообщений
+            messages_count_result = await session.execute(
+                select(func.count(SupportMessage.message_id))
+                .where(SupportMessage.ticket_id == ticket.ticket_id)
+            )
+            messages_count = messages_count_result.scalar() or 0
+            
+            tickets_list.append({
+                "ticket_id": ticket.ticket_id,
+                "subject": ticket.subject,
+                "status": ticket.status,
+                "created_at": ticket.created_at.isoformat(),
+                "updated_at": ticket.updated_at.isoformat(),
+                "messages_count": messages_count,
+                "user": {
+                    "telegram_id": ticket.user.telegram_id,
+                    "name": ticket.user.name,
+                    "username": ticket.user.username
+                } if ticket.user else None
+            })
+        
+        return {"tickets": tickets_list, "total": len(tickets_list)}
+
+@app.post("/api/admin/support/messages")
+async def send_admin_support_message(request: SendSupportMessageRequest):
+    """Отправить сообщение от администратора в тикет"""
+    async with async_session() as session:
+        # Проверяем существование тикета
+        ticket_result = await session.execute(
+            select(SupportTicket)
+            .options(selectinload(SupportTicket.user))
+            .where(SupportTicket.ticket_id == request.ticket_id)
+        )
+        ticket = ticket_result.scalar_one_or_none()
+        
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        
+        # Создаем сообщение от администратора
+        # Для этого нужно получить администратора из запроса/авторизации
+        # Временно используем первого администратора
+        admin_result = await session.execute(
+            select(User).where(User.is_admin == True).limit(1)
+        )
+        admin = admin_result.scalar_one_or_none()
+        
+        if not admin:
+            raise HTTPException(status_code=403, detail="Admin not found")
+        
+        support_message = SupportMessage(
+            ticket_id=request.ticket_id,
+            user_id=admin.user_id,
+            message=request.message,
+            is_from_admin=True
+        )
+        session.add(support_message)
+        
+        # Обновляем время обновления тикета
+        ticket.updated_at = datetime.now()
+        
+        await session.commit()
+        
+        # Отправляем уведомление пользователю
+        try:
+            if ticket.user and ticket.user.telegram_id:
+                user_message = (
+                    f"💬 <b>Новое сообщение от поддержки</b>\n\n"
+                    f"Тикет: {ticket.subject}\n"
+                    f"Сообщение: {request.message}\n\n"
+                    f"💌 Чтобы ответить, напишите в чат поддержки в приложении."
+                )
+                
+                await bot.send_message(
+                    chat_id=ticket.user.telegram_id,
+                    text=user_message,
+                    parse_mode="HTML"
+                )
+        except Exception as e:
+            print(f"❌ Ошибка отправки уведомления пользователю: {e}")
+        
+        return {"status": "success", "message": "Сообщение отправлено"}
+
+@app.put("/api/admin/support/tickets/{ticket_id}/close")
+async def close_support_ticket(ticket_id: int):
+    """Закрыть тикет поддержки"""
+    async with async_session() as session:
+        ticket_result = await session.execute(
+            select(SupportTicket)
+            .options(selectinload(SupportTicket.user))
+            .where(SupportTicket.ticket_id == ticket_id)
+        )
+        ticket = ticket_result.scalar_one_or_none()
+        
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        
+        ticket.status = 'closed'
+        ticket.updated_at = datetime.now()
+        
+        await session.commit()
+        
+        # Отправляем уведомление пользователю
+        try:
+            if ticket.user and ticket.user.telegram_id:
+                user_message = (
+                    f"✅ <b>Тикет поддержки закрыт</b>\n\n"
+                    f"Тема: {ticket.subject}\n"
+                    f"Статус: Закрыт\n\n"
+                    f"Спасибо за обращение! Если у вас остались вопросы, создайте новый тикет."
+                )
+                
+                await bot.send_message(
+                    chat_id=ticket.user.telegram_id,
+                    text=user_message,
+                    parse_mode="HTML"
+                )
+        except Exception as e:
+            print(f"❌ Ошибка отправки уведомления пользователю: {e}")
+        
+        return {"status": "success", "message": "Тикет закрыт"}
+
+# Удалите или закомментируйте все эндпоинты поддержки и замените их на простые:
+@app.post("/api/support/message")
+async def send_support_message(request: SendSupportMessageRequest):
+    """Отправить сообщение в поддержку (будет переслано в Telegram)"""
+    async with async_session() as session:
+        # Находим пользователя
+        user_result = await session.execute(
+            select(User).where(User.telegram_id == request.telegram_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Пересылаем сообщение администратору через бота
+        result = await bot.forward_to_admin(
+            user_id=request.telegram_id,
+            user_name=user.name or f"User {request.telegram_id}",
+            message=request.message
+        )
+        
+        if not result or not result.get("ok", False):
+            raise HTTPException(
+                status_code=500, 
+                detail="Не удалось отправить сообщение"
+            )
+        
+        return {"status": "success", "message": "Сообщение отправлено в поддержку"}
+
 
 if __name__ == "__main__":
     import uvicorn
