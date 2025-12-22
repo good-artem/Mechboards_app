@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News, Service, ServiceOrder, OrderStatus, CartServiceItem, SupportTicket, SupportMessage
+from models import init_db, async_session, Category, Product, User, Cart, CartItem, Order, OrderItem, News, Service, ServiceOrder, OrderStatus, CartServiceItem
 from sqlalchemy import String, select, func, text
 from typing import List, Optional
 import uuid
@@ -18,6 +18,8 @@ from sqlalchemy.orm import selectinload
 from fastapi import Query
 from telegram_bot import bot
 from middleware import admin_middleware
+from bot_webhook import router as bot_router, setup_webhook, delete_webhook
+import asyncio
 
 # Получаем токен бота из переменных окружения
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
@@ -195,26 +197,32 @@ class SendMessageRequest(BaseModel):
 class UpdateServiceOrderStatusRequest(BaseModel):
     status: str
 
-class CreateTicketRequest(BaseModel):
-    telegram_id: int 
-    subject: str
-    message: str
-
 class SendSupportMessageRequest(BaseModel):
     telegram_id: int
     message: str
 
-class CloseTicketRequest(BaseModel):
-    ticket_id: int
-
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
     await init_db()
-    print('Database initialized')
+    print('✅ Database initialized')
+    
+    # Настраиваем вебхук при старте
+    print('🔧 Setting up Telegram webhook...')
+    webhook_result = await setup_webhook()
+    if webhook_result:
+        print('✅ Telegram webhook установлен')
+    else:
+        print('⚠️ Не удалось установить Telegram webhook')
+    
     yield
+    
+    # При остановке можно удалить вебхук
+    print('🧹 Cleaning up Telegram webhook...')
+    await delete_webhook()
 
 # main.py - после создания app добавьте CORS
 app = FastAPI(title="Mechboards shop", lifespan=lifespan)
+app.include_router(bot_router)
 
 # Добавьте CORS middleware ПЕРЕД другими middleware
 app.add_middleware(
@@ -614,6 +622,7 @@ async def update_cart_item(
 
 @app.delete("/api/cart/remove")
 async def remove_cart_item(request: RemoveCartItemRequest):
+    """Удалить товар из корзины"""
     async with async_session() as session:
         # Находим элемент корзины
         result = await session.execute(
@@ -627,7 +636,6 @@ async def remove_cart_item(request: RemoveCartItemRequest):
         await session.delete(cart_item)
         await session.commit()
         return {"status": "success", "message": "Item removed from cart"}
-
 @app.post("/api/orders/create")
 async def create_order(
     request: CreateOrderRequest
@@ -1073,6 +1081,7 @@ async def update_cart_service_item(request: UpdateCartServiceItemRequest):
 # Добавьте эндпоинт для удаления услуги из корзины:
 @app.delete("/api/cart/remove_service")
 async def remove_cart_service_item(request: RemoveCartServiceItemRequest):
+    """Удалить услугу из корзины"""
     async with async_session() as session:
         # Находим элемент корзины с услугой
         result = await session.execute(
@@ -1086,7 +1095,6 @@ async def remove_cart_service_item(request: RemoveCartServiceItemRequest):
         await session.delete(cart_service_item)
         await session.commit()
         return {"status": "success", "message": "Service removed from cart"}
-
 # Добавить в main.py, после других эндпоинтов
 @app.get("/api/admin/check/{telegram_id}")
 async def check_admin(telegram_id: int, request: Request):
@@ -1799,287 +1807,6 @@ async def update_service_order_status(
         
         return {"status": "success", "message": "Статус заказа услуги обновлен"}
     
-@app.post("/api/support/tickets")
-async def create_support_ticket(request: CreateTicketRequest):
-    """Создать тикет поддержки"""
-    # Получаем telegram_id из тела запроса
-    telegram_id = request.telegram_id
-    
-    async with async_session() as session:
-        # Находим пользователя
-        user_result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = user_result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Создаем тикет
-        ticket = SupportTicket(
-            user_id=user.user_id,
-            subject=request.subject,
-            status='open'
-        )
-        session.add(ticket)
-        await session.commit()
-        await session.refresh(ticket)
-        
-        # Создаем первое сообщение
-        support_message = SupportMessage(
-            ticket_id=ticket.ticket_id,
-            user_id=user.user_id,
-            message=request.message,
-            is_from_admin=False
-        )
-        session.add(support_message)
-        await session.commit()
-        
-        # Отправляем уведомление администраторам
-        try:
-            admin_message = (
-                f"🆘 <b>Создан новый тикет поддержки</b>\n\n"
-                f"Тема: {request.subject}\n"
-                f"Пользователь: {user.name} (@{user.username})\n"
-                f"Telegram ID: {telegram_id}\n"
-                f"Сообщение: {request.message[:200]}..."
-            )
-            
-            await bot.send_admin_notification(admin_message)
-            
-        except Exception as e:
-            print(f"❌ Ошибка отправки уведомления: {e}")
-        
-        return {
-            "status": "success",
-            "ticket_id": ticket.ticket_id,
-            "message": "Тикет поддержки создан"
-        }
-    
-@app.get("/api/support/tickets")
-async def get_user_tickets(telegram_id: int = Query(...)):
-    """Получить тикеты пользователя"""
-    async with async_session() as session:
-        user_result = await session.execute(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-        user = user_result.scalar_one_or_none()
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Получаем тикеты пользователя
-        tickets_result = await session.execute(
-            select(SupportTicket)
-            .where(SupportTicket.user_id == user.user_id)
-            .order_by(SupportTicket.updated_at.desc())
-        )
-        tickets = tickets_result.scalars().all()
-        
-        tickets_list = []
-        for ticket in tickets:
-            # Получаем последнее сообщение
-            last_message_result = await session.execute(
-                select(SupportMessage)
-                .where(SupportMessage.ticket_id == ticket.ticket_id)
-                .order_by(SupportMessage.created_at.desc())
-                .limit(1)
-            )
-            last_message = last_message_result.scalar_one_or_none()
-            
-            tickets_list.append({
-                "ticket_id": ticket.ticket_id,
-                "subject": ticket.subject,
-                "status": ticket.status,
-                "created_at": ticket.created_at.isoformat(),
-                "updated_at": ticket.updated_at.isoformat(),
-                "last_message": last_message.message if last_message else "",
-                "last_message_time": last_message.created_at.isoformat() if last_message else None
-            })
-        
-        return tickets_list
-        
-@app.get("/api/support/tickets/{ticket_id}/messages")
-async def get_ticket_messages(ticket_id: int):
-    """Получить сообщения тикета"""
-    async with async_session() as session:
-        # Проверяем существование тикета
-        ticket_result = await session.execute(
-            select(SupportTicket).where(SupportTicket.ticket_id == ticket_id)
-        )
-        ticket = ticket_result.scalar_one_or_none()
-        
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Ticket not found")
-        
-        # Получаем сообщения
-        messages_result = await session.execute(
-            select(SupportMessage)
-            .options(selectinload(SupportMessage.user))
-            .where(SupportMessage.ticket_id == ticket_id)
-            .order_by(SupportMessage.created_at.asc())
-        )
-        messages = messages_result.scalars().all()
-        
-        messages_list = []
-        for msg in messages:
-            messages_list.append({
-                "message_id": msg.message_id,
-                "message": msg.message,
-                "is_from_admin": msg.is_from_admin,
-                "created_at": msg.created_at.isoformat(),
-                "user": {
-                    "name": msg.user.name,
-                    "username": msg.user.username,
-                    "is_admin": msg.user.is_admin
-                } if msg.user else None
-            })
-        
-        return messages_list
-
-# Админ эндпоинты для поддержки
-@app.get("/api/admin/support/tickets")
-async def get_all_tickets(
-    status: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0
-):
-    """Получить все тикеты поддержки"""
-    async with async_session() as session:
-        query = select(SupportTicket).options(
-            selectinload(SupportTicket.user)
-        )
-        
-        if status:
-            query = query.where(SupportTicket.status == status)
-        
-        query = query.order_by(SupportTicket.updated_at.desc()).limit(limit).offset(offset)
-        result = await session.execute(query)
-        tickets = result.scalars().all()
-        
-        tickets_list = []
-        for ticket in tickets:
-            # Получаем количество сообщений
-            messages_count_result = await session.execute(
-                select(func.count(SupportMessage.message_id))
-                .where(SupportMessage.ticket_id == ticket.ticket_id)
-            )
-            messages_count = messages_count_result.scalar() or 0
-            
-            tickets_list.append({
-                "ticket_id": ticket.ticket_id,
-                "subject": ticket.subject,
-                "status": ticket.status,
-                "created_at": ticket.created_at.isoformat(),
-                "updated_at": ticket.updated_at.isoformat(),
-                "messages_count": messages_count,
-                "user": {
-                    "telegram_id": ticket.user.telegram_id,
-                    "name": ticket.user.name,
-                    "username": ticket.user.username
-                } if ticket.user else None
-            })
-        
-        return {"tickets": tickets_list, "total": len(tickets_list)}
-
-@app.post("/api/admin/support/messages")
-async def send_admin_support_message(request: SendSupportMessageRequest):
-    """Отправить сообщение от администратора в тикет"""
-    async with async_session() as session:
-        # Проверяем существование тикета
-        ticket_result = await session.execute(
-            select(SupportTicket)
-            .options(selectinload(SupportTicket.user))
-            .where(SupportTicket.ticket_id == request.ticket_id)
-        )
-        ticket = ticket_result.scalar_one_or_none()
-        
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Ticket not found")
-        
-        # Создаем сообщение от администратора
-        # Для этого нужно получить администратора из запроса/авторизации
-        # Временно используем первого администратора
-        admin_result = await session.execute(
-            select(User).where(User.is_admin == True).limit(1)
-        )
-        admin = admin_result.scalar_one_or_none()
-        
-        if not admin:
-            raise HTTPException(status_code=403, detail="Admin not found")
-        
-        support_message = SupportMessage(
-            ticket_id=request.ticket_id,
-            user_id=admin.user_id,
-            message=request.message,
-            is_from_admin=True
-        )
-        session.add(support_message)
-        
-        # Обновляем время обновления тикета
-        ticket.updated_at = datetime.now()
-        
-        await session.commit()
-        
-        # Отправляем уведомление пользователю
-        try:
-            if ticket.user and ticket.user.telegram_id:
-                user_message = (
-                    f"💬 <b>Новое сообщение от поддержки</b>\n\n"
-                    f"Тикет: {ticket.subject}\n"
-                    f"Сообщение: {request.message}\n\n"
-                    f"💌 Чтобы ответить, напишите в чат поддержки в приложении."
-                )
-                
-                await bot.send_message(
-                    chat_id=ticket.user.telegram_id,
-                    text=user_message,
-                    parse_mode="HTML"
-                )
-        except Exception as e:
-            print(f"❌ Ошибка отправки уведомления пользователю: {e}")
-        
-        return {"status": "success", "message": "Сообщение отправлено"}
-
-@app.put("/api/admin/support/tickets/{ticket_id}/close")
-async def close_support_ticket(ticket_id: int):
-    """Закрыть тикет поддержки"""
-    async with async_session() as session:
-        ticket_result = await session.execute(
-            select(SupportTicket)
-            .options(selectinload(SupportTicket.user))
-            .where(SupportTicket.ticket_id == ticket_id)
-        )
-        ticket = ticket_result.scalar_one_or_none()
-        
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Ticket not found")
-        
-        ticket.status = 'closed'
-        ticket.updated_at = datetime.now()
-        
-        await session.commit()
-        
-        # Отправляем уведомление пользователю
-        try:
-            if ticket.user and ticket.user.telegram_id:
-                user_message = (
-                    f"✅ <b>Тикет поддержки закрыт</b>\n\n"
-                    f"Тема: {ticket.subject}\n"
-                    f"Статус: Закрыт\n\n"
-                    f"Спасибо за обращение! Если у вас остались вопросы, создайте новый тикет."
-                )
-                
-                await bot.send_message(
-                    chat_id=ticket.user.telegram_id,
-                    text=user_message,
-                    parse_mode="HTML"
-                )
-        except Exception as e:
-            print(f"❌ Ошибка отправки уведомления пользователю: {e}")
-        
-        return {"status": "success", "message": "Тикет закрыт"}
-
 # Удалите или закомментируйте все эндпоинты поддержки и замените их на простые:
 @app.post("/api/support/message")
 async def send_support_message(request: SendSupportMessageRequest):
@@ -2108,6 +1835,38 @@ async def send_support_message(request: SendSupportMessageRequest):
             )
         
         return {"status": "success", "message": "Сообщение отправлено в поддержку"}
+
+# main.py - добавьте в конец файла перед if __name__ == "__main__":
+@app.post("/api/support/initiate")
+async def initiate_support(request: Request):
+    """Инициировать чат поддержки в Telegram"""
+    data = await request.json()
+    telegram_id = data.get('telegram_id')
+    message = data.get('message', '')
+    
+    async with async_session() as session:
+        # Находим пользователя
+        result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_name = user.name or f"Пользователь {telegram_id}"
+        
+        # Отправляем через бота
+        result = await bot.create_support_chat(
+            user_id=telegram_id,
+            user_name=user_name,
+            initial_message=message
+        )
+        
+        if result.get("ok", False):
+            return {"status": "success", "message": "Чат поддержки открыт в Telegram"}
+        else:
+            raise HTTPException(status_code=500, detail="Не удалось открыть чат поддержки")
 
 
 if __name__ == "__main__":
