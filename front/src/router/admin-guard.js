@@ -23,7 +23,7 @@ export async function checkAdminAccess() {
       telegramId = 391622124;
     }
     
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://psychic-adventure-wrpj64gv4jx7h5pwp-8000.app.github.dev';
     
     // Пробуем сначала простую проверку (без проверки хэша)
     try {

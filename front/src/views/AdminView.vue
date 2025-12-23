@@ -1079,7 +1079,7 @@ export default {
         }
         
         if (imagePath && imagePath.startsWith('/')) {
-          return `https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev${imagePath}`;
+          return `https://psychic-adventure-wrpj64gv4jx7h5pwp-8000.app.github.dev${imagePath}`;
         }
         
         return imagePath || 'https://via.placeholder.com/100x100/667eea/ffffff?text=No+Image';

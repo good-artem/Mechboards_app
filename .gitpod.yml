@@ -4,6 +4,7 @@ tasks:
   - name: Backend API
     init: |
       pip install -r ./requirements.txt
+      echo "=== НАЧАЛОСЬ ВЫПОЛНЕНИЕ .gitpod.yml ==="
     command: |
       source .venv/bin/activate
       cd ./back/

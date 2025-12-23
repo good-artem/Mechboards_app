@@ -110,19 +110,21 @@
 
             <!-- Категории (показываются по умолчанию) -->
             <div v-if="!showProducts">
-                <v-row class="categories-grid">
-                    <v-col 
-                        v-for="category in categories" 
-                        :key="category.category_id"
-                        cols="4"
-                        class="pa-2 category-card-container"
-                    >
-                        <CategoryCard 
-                            :category="category" 
-                            @category-selected="onCategorySelected"
-                        />
-                    </v-col>
-                </v-row>
+                <v-container fluid class="pa-0 ma-0">
+                    <v-row class="categories-grid ma-0">
+                        <v-col 
+                            v-for="category in categories" 
+                            :key="category.category_id"
+                            cols="4"
+                            class="pa-0 ma-0 category-card-container"
+                        >
+                            <CategoryCard 
+                                :category="category" 
+                                @category-selected="onCategorySelected"
+                            />
+                        </v-col>
+                    </v-row>
+                </v-container>
             </div>
 
             <!-- Товары (показываются при выборе категории или поиске) -->
@@ -458,7 +460,7 @@ export default {
             if (import.meta.env.MODE === 'development') {
                 return 'http://localhost:8000';
             } else {
-                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+                return 'https://psychic-adventure-wrpj64gv4jx7h5pwp-8000.app.github.dev';
             }
         },
         
@@ -730,11 +732,54 @@ export default {
 <style scoped>
 /* Уменьшаем отступ сверху для категорий */
 .with-news {
-  padding-top: 120px; /* Уменьшено с 160px */
+  padding-top: 80px !important; /* Уменьшено для большего пространства */
 }
 
 .without-news {
-  padding-top: 0; /* Уменьшено с 20px */
+  padding-top: 0 !important;
+}
+
+/* Убираем стандартные отступы контейнера для сетки категорий */
+.container--fluid {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+/* СЕТКА КАТЕГОРИЙ - ФИКС ШИРИНЫ */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px; /* Минимальный отступ между карточками */
+  width: 100%;
+  margin: 0 !important;
+  padding: 4px !important; /* Убрали лишние отступы */
+}
+
+/* ОЧЕНЬ ВАЖНО: убираем стандартные отступы Vuetify */
+.categories-grid .v-col {
+  padding: 2px !important; /* Минимальный padding */
+  margin: 0 !important;
+  width: 100%;
+}
+
+/* Контейнер для карточек категорий */
+.category-card-container {
+  width: 100%;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Убираем все лишние отступы вокруг сетки */
+.v-container {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  max-width: 100% !important;
+}
+
+.v-row {
+  margin-left: -2px !important;
+  margin-right: -2px !important;
+  width: calc(100% + 4px) !important;
 }
 
 .filters-bar {
@@ -742,29 +787,16 @@ export default {
     top: 0;
     z-index: 90;
     background: var(--tg-theme-bg-color, #ffffff);
-    margin: 0 -8px;
-    padding: 8px;
+    margin: 0 -4px !important;
+    padding: 8px 4px !important;
     border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
 }
 
 .filters-panel {
     background: var(--tg-theme-bg-color, #ffffff);
     border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
-    margin: 0 -8px;
-    padding: 8px;
-}
-
-/* Оптимизируем сетку категорий */
-.categories-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px; /* Уменьшен gap */
-    margin: 0 -2px; /* Уменьшены отступы */
-}
-
-/* Уменьшаем отступы между карточками категорий */
-.categories-grid .pa-2 {
-    padding: 4px !important; /* Уменьшено с 8px */
+    margin: 0 -4px !important;
+    padding: 8px 4px !important;
 }
 
 .telegram-select .v-field {
@@ -781,67 +813,51 @@ export default {
     min-height: 300px;
 }
 
-/* Исправление перекрытия текста в продуктах */
-.product-card .product-name {
-    display: -webkit-box;
-    display: -moz-box;
-    display: box;
-    -webkit-line-clamp: 2;
-    -moz-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    -moz-box-orient: vertical;
-    box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: normal;
-    line-height: 1.3;
-    max-height: 2.6em;
-}
-
-/* Оптимизация для лучшего отображения 9 категорий */
-.category-card-container {
-    aspect-ratio: 1 / 1; /* Делаем карточки квадратными */
-}
-
 /* Адаптация для маленьких экранов */
 @media (max-width: 600px) {
     .with-news {
-        padding-top: 110px; /* Уменьшено с 150px */
+        padding-top: 70px !important;
     }
     
     .categories-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 4px; /* Еще меньше на мобильных */
+        gap: 4px;
+        padding: 2px !important;
     }
     
-    .categories-grid .pa-2 {
-        padding: 3px !important;
+    .categories-grid .v-col {
+        padding: 1px !important;
+    }
+    
+    .v-container {
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+    }
+    
+    .v-row {
+        margin-left: -1px !important;
+        margin-right: -1px !important;
+        width: calc(100% + 2px) !important;
     }
     
     .filters-bar {
-        padding: 6px;
-        margin: 0 -4px;
+        padding: 6px 2px !important;
+        margin: 0 -2px !important;
     }
     
     .filters-panel {
-        padding: 6px;
-        margin: 0 -4px;
-    }
-    
-    .products-container {
-        margin-top: 12px;
+        padding: 6px 2px !important;
+        margin: 0 -2px !important;
     }
 }
 
 @media (max-width: 400px) {
     .categories-grid {
-        grid-template-columns: repeat(3, 1fr);
         gap: 3px;
+        padding: 1px !important;
     }
     
-    .categories-grid .pa-2 {
-        padding: 2px !important;
+    .categories-grid .v-col {
+        padding: 0.5px !important;
     }
 }
 
@@ -850,17 +866,22 @@ export default {
     .categories-grid {
         gap: 2px;
     }
-    
-    .category-card {
-        min-height: 65px;
+}
+
+/* Улучшаем отображение для планшетов и больших экранов */
+@media (min-width: 960px) {
+    .categories-grid {
+        gap: 10px;
+        padding: 8px !important;
     }
     
-    .category-card .v-icon {
-        font-size: 20px;
+    .categories-grid .v-col {
+        padding: 4px !important;
     }
     
-    .category-card .text-caption {
-        font-size: 0.6rem;
+    .v-container {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
     }
 }
 </style>

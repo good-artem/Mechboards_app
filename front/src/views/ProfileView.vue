@@ -441,11 +441,11 @@ export default {
             
             const hostname = window.location.hostname;
             if (hostname.includes('github.dev')) {
-                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+                return 'https://psychic-adventure-wrpj64gv4jx7h5pwp-8000.app.github.dev';
             } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
                 return 'http://localhost:8000';
             } else {
-                return 'https://verbose-space-orbit-x45v4q7q6wwf6g94-8000.app.github.dev';
+                return 'https://psychic-adventure-wrpj64gv4jx7h5pwp-8000.app.github.dev';
             }
         },
         
