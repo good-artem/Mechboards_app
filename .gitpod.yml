@@ -1,14 +1,13 @@
-image: gitpod/workspace-python-3.11  # Базовый образ с Python
+image: gitpod/workspace-python-3.12  # Базовый образ с Python
 
 tasks:
   - name: Backend API
     init: |
-      cd back
-      pip install -r requirements.txt
+      pip install -r ./requirements.txt
     command: |
-      cd back
-      python main.py  # или uvicorn/gunicorn, если используете
-
+      source .venv/bin/activate
+      cd ./back/
+      uvicorn main:app --reload
 
 ports:
   - port: 5000  # Порт вашего бэкенда (измените под ваш случай)
