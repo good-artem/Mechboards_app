@@ -18,7 +18,109 @@
     transition: all 0.3s ease;
     height: 100px;
     display: flex;
+    align-items: center;.home-container {
+    padding: 16px 8px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.features-grid {
+    margin: 0 -4px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.feature-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 100px;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--tg-theme-bg-color, #ffffff);
+    border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    color: var(--tg-theme-text-color, #000000);
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.feature-card .v-card-text {
+    color: var(--tg-theme-text-color, #000000) !important;
+    text-align: center;
+    padding: 16px 8px !important;
+}
+
+.benefits-card {
+    border-radius: 12px;
+    background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+    margin-top: 16px;
+}
+
+.benefits-list {
+    background: transparent !important;
+    padding: 8px 0 !important;
+}
+
+.benefit-item {
+    min-height: 32px !important;
+    padding: 0 16px !important;
+}
+
+.benefit-item .v-list-item-title {
+    font-size: 0.85rem !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+    line-height: 1.4;
+}
+
+.cta-button {
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: none;
+    height: 48px;
+    margin-top: 16px;
+    background: var(--tg-theme-button-color, #2481cc) !important;
+    color: var(--tg-theme-button-text-color, #ffffff) !important;
+}
+
+/* Адаптация для маленьких экранов */
+@media (max-width: 600px) {
+    .home-container {
+        padding: 12px 4px;
+        max-height: calc(100vh - 130px);
+    }
+    
+    .features-grid {
+        gap: 6px;
+    }
+    
+    .feature-card {
+        height: 90px;
+    }
+    
+    .feature-card .v-card-text {
+        padding: 12px 6px !important;
+    }
+    
+    .benefit-item .v-list-item-title {
+        font-size: 0.8rem !important;
+    }
+}
+
+@media (max-height: 700px) {
+    .home-container {
+        padding-bottom: 16px;
+    }
+    
+    .feature-card {
+        height: 85px;
+    }
+}
     justify-content: center;
     border-radius: 12px;
     background: var(--tg-theme-bg-color, #ffffff);

@@ -144,5 +144,165 @@ export default {
 </script>
 
 <style scoped>
+.navbar-with-search {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--tg-theme-bg-color, #ffffff);
+}
 
+.search-container {
+  position: absolute;
+  bottom: 56px;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+  z-index: 1001;
+}
+
+.navigation-buttons {
+  height: 56px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  border-top: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+  position: relative;
+  z-index: 1000;
+}
+
+.search-field {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Стили для активной кнопки навигации */
+.btn-label {
+  font-size: 0.7rem;
+  margin-top: 2px;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 600px) {
+  .search-container {
+    padding: 6px;
+    bottom: 48px;
+  }
+  
+  .navigation-buttons {
+    height: 48px;
+  }
+  
+  .search-field {
+    font-size: 14px;
+  }
+  
+  .btn-label {
+    font-size: 0.65rem;
+  }
+}
+
+/* Для iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .navbar-with-search {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+</style>
+
+<style>
+/* Глубокие селекторы для правильного применения стилей Vuetify */
+
+/* Стили для поля поиска */
+.navbar-with-search .search-field .v-field {
+  background-color: var(--tg-theme-secondary-bg-color, #f1f1f1) !important;
+  color: var(--tg-theme-text-color, #000000) !important;
+  border: 1px solid transparent !important;
+}
+
+.navbar-with-search .search-field .v-field__input {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.navbar-with-search .search-field .v-field__prepend-inner .v-icon {
+  color: var(--tg-theme-hint-color, #999999) !important;
+}
+
+.navbar-with-search .search-field .v-field__clearable .v-icon {
+  color: var(--tg-theme-hint-color, #999999) !important;
+}
+
+.navbar-with-search .search-field .v-field__placeholder {
+  color: var(--tg-theme-hint-color, #999999) !important;
+}
+
+/* Состояния поля */
+.navbar-with-search .search-field .v-field--focused {
+  background-color: var(--tg-theme-secondary-bg-color, #f1f1f1) !important;
+  border-color: var(--tg-theme-button-color, #2481cc) !important;
+  box-shadow: 0 0 0 1px var(--tg-theme-button-color, #2481cc) !important;
+}
+
+.navbar-with-search .search-field .v-field--focused .v-field__prepend-inner .v-icon {
+  color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+/* Стили для кнопок навигации */
+.navbar-with-search .navigation-buttons .v-btn {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.navbar-with-search .navigation-buttons .v-btn--active {
+  color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+.navbar-with-search .navigation-buttons .v-btn--active .v-icon {
+  color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+.navbar-with-search .navigation-buttons .v-btn--active .btn-label {
+  color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+.navbar-with-search .navigation-buttons .v-btn .v-icon {
+  color: var(--tg-theme-text-color, #000000) !important;
+}
+
+/* Стили для бейджа в корзине */
+.navbar-with-search .v-badge .v-badge__badge {
+  background-color: var(--tg-theme-button-color, #2481cc) !important;
+  color: var(--tg-theme-button-text-color, #ffffff) !important;
+  font-size: 10px;
+  min-width: 16px;
+  height: 16px;
+}
+
+/* Темная тема адаптация */
+@media (prefers-color-scheme: dark) {
+  .navbar-with-search .search-field .v-field {
+    background-color: var(--tg-theme-secondary-bg-color, #1c1c1d) !important;
+  }
+  
+  .navbar-with-search .search-field .v-field__input {
+    color: var(--tg-theme-text-color, #ffffff) !important;
+  }
+  
+  .navbar-with-search .search-field .v-field__placeholder {
+    color: var(--tg-theme-hint-color, #8e8e93) !important;
+  }
+  
+  .navbar-with-search .navigation-buttons .v-btn {
+    color: var(--tg-theme-text-color, #ffffff) !important;
+  }
+  
+  .navbar-with-search .navigation-buttons .v-btn .v-icon {
+    color: var(--tg-theme-text-color, #ffffff) !important;
+  }
+}
+
+/* Анимация при фокусе */
+.navbar-with-search .search-field .v-field {
+  transition: all 0.2s ease;
+}
 </style>

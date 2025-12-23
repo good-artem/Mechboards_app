@@ -115,7 +115,7 @@
                         v-for="category in categories" 
                         :key="category.category_id"
                         cols="4"
-                        class="pa-2"
+                        class="pa-2 category-card-container"
                     >
                         <CategoryCard 
                             :category="category" 
@@ -727,3 +727,140 @@ export default {
     }
 }
 </script>
+<style scoped>
+/* Уменьшаем отступ сверху для категорий */
+.with-news {
+  padding-top: 120px; /* Уменьшено с 160px */
+}
+
+.without-news {
+  padding-top: 0; /* Уменьшено с 20px */
+}
+
+.filters-bar {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background: var(--tg-theme-bg-color, #ffffff);
+    margin: 0 -8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+}
+
+.filters-panel {
+    background: var(--tg-theme-bg-color, #ffffff);
+    border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+    margin: 0 -8px;
+    padding: 8px;
+}
+
+/* Оптимизируем сетку категорий */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px; /* Уменьшен gap */
+    margin: 0 -2px; /* Уменьшены отступы */
+}
+
+/* Уменьшаем отступы между карточками категорий */
+.categories-grid .pa-2 {
+    padding: 4px !important; /* Уменьшено с 8px */
+}
+
+.telegram-select .v-field {
+    background: var(--tg-theme-secondary-bg-color, #f5f5f5) !important;
+    color: var(--tg-theme-text-color, #000000) !important;
+}
+
+.filter-btn, .back-btn {
+    color: var(--tg-theme-button-color, #2481cc) !important;
+}
+
+.products-container {
+    margin-top: 16px;
+    min-height: 300px;
+}
+
+/* Исправление перекрытия текста в продуктах */
+.product-card .product-name {
+    display: -webkit-box;
+    display: -moz-box;
+    display: box;
+    -webkit-line-clamp: 2;
+    -moz-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    -moz-box-orient: vertical;
+    box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.3;
+    max-height: 2.6em;
+}
+
+/* Оптимизация для лучшего отображения 9 категорий */
+.category-card-container {
+    aspect-ratio: 1 / 1; /* Делаем карточки квадратными */
+}
+
+/* Адаптация для маленьких экранов */
+@media (max-width: 600px) {
+    .with-news {
+        padding-top: 110px; /* Уменьшено с 150px */
+    }
+    
+    .categories-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px; /* Еще меньше на мобильных */
+    }
+    
+    .categories-grid .pa-2 {
+        padding: 3px !important;
+    }
+    
+    .filters-bar {
+        padding: 6px;
+        margin: 0 -4px;
+    }
+    
+    .filters-panel {
+        padding: 6px;
+        margin: 0 -4px;
+    }
+    
+    .products-container {
+        margin-top: 12px;
+    }
+}
+
+@media (max-width: 400px) {
+    .categories-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3px;
+    }
+    
+    .categories-grid .pa-2 {
+        padding: 2px !important;
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 360px) {
+    .categories-grid {
+        gap: 2px;
+    }
+    
+    .category-card {
+        min-height: 65px;
+    }
+    
+    .category-card .v-icon {
+        font-size: 20px;
+    }
+    
+    .category-card .text-caption {
+        font-size: 0.6rem;
+    }
+}
+</style>

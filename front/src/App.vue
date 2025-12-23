@@ -31,7 +31,7 @@
 
 <script>
 import NavbarWithSearch from '@/components/NavbarWithSearch.vue'
-import '@/assets/styles/global.css'
+import '@/assets/styles/main.css'
 import '@/assets/styles/telegram-theme.css'
 import '@/assets/styles/app.css'
 

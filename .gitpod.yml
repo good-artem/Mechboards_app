@@ -1,0 +1,23 @@
+image: gitpod/workspace-python-3.11  # Базовый образ с Python
+
+tasks:
+  - name: Backend API
+    init: |
+      cd back
+      pip install -r requirements.txt
+    command: |
+      cd back
+      python main.py  # или uvicorn/gunicorn, если используете
+
+
+ports:
+  - port: 5000  # Порт вашего бэкенда (измените под ваш случай)
+    onOpen: open-preview
+    visibility: public  # Критично для доступа из Telegram!
+
+
+github:
+  prebuilds:
+    master: true
+    branches: true
+    pullRequests: true

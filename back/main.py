@@ -18,7 +18,6 @@ from sqlalchemy.orm import selectinload
 from fastapi import Query
 from telegram_bot import bot
 from middleware import admin_middleware
-from bot_webhook import router as bot_router, setup_webhook, delete_webhook
 import asyncio
 
 # Получаем токен бота из переменных окружения
@@ -204,25 +203,12 @@ class SendSupportMessageRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
     await init_db()
-    print('✅ Database initialized')
-    
-    # Настраиваем вебхук при старте
-    print('🔧 Setting up Telegram webhook...')
-    webhook_result = await setup_webhook()
-    if webhook_result:
-        print('✅ Telegram webhook установлен')
-    else:
-        print('⚠️ Не удалось установить Telegram webhook')
-    
+    print('Database initialized')
     yield
-    
-    # При остановке можно удалить вебхук
-    print('🧹 Cleaning up Telegram webhook...')
-    await delete_webhook()
 
 # main.py - после создания app добавьте CORS
 app = FastAPI(title="Mechboards shop", lifespan=lifespan)
-app.include_router(bot_router)
+app.mount("/assets", StaticFiles(directory="../front/src/assets"), name="assets")
 
 # Добавьте CORS middleware ПЕРЕД другими middleware
 app.add_middleware(

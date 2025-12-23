@@ -9,6 +9,7 @@
     background: var(--tg-theme-bg-color, #ffffff);
     border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
     color: var(--tg-theme-text-color, #000000);
+    width: 100%;
 }
 
 .category-card:hover {
@@ -18,4 +19,66 @@
 
 .category-card .v-card-text {
     color: var(--tg-theme-text-color, #000000) !important;
+    text-align: center;
+    padding: 16px 8px !important;
+    width: 100%;
+}
+
+.category-card .v-icon {
+    color: var(--tg-theme-button-color, #2481cc) !important;
+    margin-bottom: 8px;
+}
+
+.category-card .text-body-2 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--tg-theme-text-color, #000000);
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    display: -moz-box;
+    display: box;
+    -webkit-line-clamp: 2;
+    -moz-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    -moz-box-orient: vertical;
+    box-orient: vertical;
+    max-height: 2.4em;
+}
+
+/* Адаптация для маленьких экранов */
+@media (max-width: 600px) {
+    .category-card {
+        height: 90px;
+    }
+    
+    .category-card .v-card-text {
+        padding: 12px 6px !important;
+    }
+    
+    .category-card .v-icon {
+        font-size: 28px;
+        margin-bottom: 6px;
+    }
+    
+    .category-card .text-body-2 {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .category-card {
+        height: 85px;
+    }
+    
+    .category-card .v-icon {
+        font-size: 24px;
+    }
+    
+    .category-card .text-body-2 {
+        font-size: 0.8rem;
+    }
 }
